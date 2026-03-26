@@ -31,6 +31,8 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         port: 22
+        script: |
+          find /var/www/ds2/localservice -mindepth 1 ! -name '.htaccess' -exec rm -rf {} +
 
     - name: 🚀 Desplegar al VPS vía SCP
       uses: appleboy/scp-action@v0.1.7
