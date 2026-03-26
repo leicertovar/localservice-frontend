@@ -10,27 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout código
+    - name: 📥 Checkout código
       uses: actions/checkout@v4
 
-    - name: Instalar Node.js
+    - name: 🟢 Instalar Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 20 
 
-    - name: Instalar dependencias y Build
-      run: |
-        npm install
-        npm run build
+    - name: 📦 Instalar dependencias
+      run: npm install
 
-    - name: Desplegar al VPS vía SCP
-      uses: appleboy/scp-action@master
+    - name: 🏗️ Build del proyecto
+      run: npm run build
+
+    - name: 🧹 Limpiar carpeta (sin borrar .htaccess)
+      uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         port: 22
-        source: "dist/*" 
+
+    - name: 🚀 Desplegar al VPS vía SCP
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        source: "dist/*"
         target: "/var/www/ds2/localservice"
-        strip_components: 1 
-        rm: true
+        strip_components: 1
+        rm: false
