@@ -23,10 +23,14 @@ const CTASection = () => {
               Únete a miles de usuarios y proveedores que ya confían en LocalService
             </p>
             <div className="flex flex-wrap justify-center gap-4">
+              <a href="/registro">
               <Button variant="hero" size="lg" className="gap-2 bg-accent hover:bg-accent/90">
                 Comenzar Ahora
                 <ArrowRight className="h-4 w-4" />
               </Button>
+              </a>
+
+              <a href="/registro">
               <Button
                 variant="heroOutline"
                 size="lg"
@@ -34,6 +38,7 @@ const CTASection = () => {
               >
                 Soy Proveedor
               </Button>
+              </a>
             </div>
           </div>
         </div>
