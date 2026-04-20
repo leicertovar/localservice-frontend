@@ -1,8 +1,30 @@
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Search, Star, Users, Shield } from "lucide-react";
-import heroImage from "@/assets/hero-image.jpg";
+import { Search, Star, Users, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import imagen1 from "@/assets/hero-image.jpg";
+import imagen2 from "@/assets/carpintero.jpg";
+import imagen3 from "@/assets/electricista.jpg";
+import imagen4 from "@/assets/plomero.jpg";
 
 const HeroSection = () => {
+  const images = [imagen1, imagen2, imagen3, imagen4]; // arreglo de imágenes para el carrusel
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  const nextImage = () => {
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
+  };
+
   return (
     <section className="relative pt-16 overflow-hidden">
       <div className="container mx-auto px-6 py-20 lg:py-28">
@@ -66,12 +88,44 @@ const HeroSection = () => {
           >
             <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-primary/10">
               <img
-                src={heroImage}
+                src={images[currentIndex]}
                 alt="Profesional local saludando a un cliente en la puerta de su hogar"
-                className="w-full h-auto object-cover aspect-[4/3]"
+                className="w-full h-auto object-cover aspect-[4/3] transition-opacity duration-500 ease-in-out"
                 loading="eager"
               />
               <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-foreground/5" />
+
+              {/* Navigation buttons */}
+              <button
+                onClick={prevImage}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-foreground rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-105"
+                aria-label="Imagen anterior"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-foreground rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-105"
+                aria-label="Imagen siguiente"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              {/* Dots indicator */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      index === currentIndex
+                        ? 'bg-white scale-125'
+                        : 'bg-white/50 hover:bg-white/75'
+                    }`}
+                    aria-label={`Ir a imagen ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Floating card */}
