@@ -53,7 +53,7 @@ const HeroSection = () => {
               className="text-lg text-muted-foreground max-w-lg font-body leading-relaxed opacity-0 animate-fade-up"
               style={{ animationDelay: "350ms" }}
             >
-              Encuentra y contrata proveedores locales verificados para
+              Encuentra y contrata proveedores locales para
               plomería, electricidad, limpieza, jardinería y mucho más.
               Rápido, seguro y con calificaciones reales.
             </p>
