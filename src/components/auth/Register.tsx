@@ -5,17 +5,44 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { register } from '@/services/authService'
+import { useAuth } from '@/context/AuthContext'
 
 const Register = () => {
   const [role, setRole] = useState<"cliente" | "proveedor">("cliente");
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({ title: "¡Registro exitoso!", description: "Tu cuenta ha sido creada." });
-    navigate(role === "proveedor" ? "/proveedor" : "/cliente");
-  };
+// Dentro del componente, agrega estado para los campos
+const { setLoggedIn } = useAuth()
+const [isLoading, setIsLoading] = useState(false)
+const [form, setForm] = useState({
+  name: '', email: '', password: '', password_confirmation: ''
+})
+
+// Reemplaza handleRegister:
+const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (form.password !== form.password_confirmation) {
+    toast({ title: 'Error', description: 'Las contraseñas no coinciden', variant: 'destructive' })
+    return
+  }
+  setIsLoading(true)
+  try {
+    await register(form)
+    setLoggedIn(true)
+    toast({ title: '¡Registro exitoso!', description: 'Bienvenido a ServiLocal.' })
+    navigate(role === 'proveedor' ? '/proveedor' : '/cliente')
+  } catch (err: any) {
+    const errors = err.response?.data?.errors
+    const msg = errors
+      ? Object.values(errors).flat().join(' · ')
+      : err.response?.data?.message || 'Error al registrarse'
+    toast({ title: 'Error', description: msg, variant: 'destructive' })
+  } finally {
+    setIsLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary p-4">

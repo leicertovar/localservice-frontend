@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { login } from '@/services/authService'
+import { useAuth } from '@/context/AuthContext'
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,18 +15,26 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock login - route based on email
-    if (email.includes("admin")) {
-      navigate("/admin");
-    } else if (email.includes("proveedor") || email.includes("provider")) {
-      navigate("/proveedor");
-    } else {
-      navigate("/cliente");
-    }
-    toast({ title: "¡Bienvenido!", description: "Inicio de sesión exitoso." });
-  };
+  // Dentro del componente Login, agrega:
+const { setLoggedIn } = useAuth()
+const [isLoading, setIsLoading] = useState(false)
+
+// Reemplaza handleLogin por esta versión real:
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
+  try {
+    await login(email, password)
+    setLoggedIn(true)
+    toast({ title: '¡Bienvenido!', description: 'Inicio de sesión exitoso.' })
+    navigate('/cliente') // ajusta según el rol
+  } catch (err: any) {
+    const msg = err.response?.data?.message || 'Credenciales incorrectas'
+    toast({ title: 'Error', description: msg, variant: 'destructive' })
+  } finally {
+    setIsLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen flex">
@@ -69,7 +79,9 @@ const Login = () => {
               </div>
               <Link to="/recuperar-contrasena" className="text-xs text-primary hover:underline">¿Olvidaste tu contraseña?</Link>
             </div>
-            <Button type="submit" className="w-full" size="lg">Ingresar</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
