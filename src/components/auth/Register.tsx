@@ -17,7 +17,12 @@ const Register = () => {
 const { setLoggedIn } = useAuth()
 const [isLoading, setIsLoading] = useState(false)
 const [form, setForm] = useState({
-  name: '', email: '', password: '', password_confirmation: ''
+  name: '', 
+  last_name: '', 
+  email: '', 
+  phone: '', 
+  password: '', 
+  password_confirmation: ''
 })
 
 // Reemplaza handleRegister:
@@ -29,7 +34,11 @@ const handleRegister = async (e: React.FormEvent) => {
   }
   setIsLoading(true)
   try {
-    await register(form)
+    const registerData: any = { ...form }
+    if (role === 'proveedor') {
+      registerData.role = 'proveedor'
+    }
+    await register(registerData)
     setLoggedIn(true)
     toast({ title: '¡Registro exitoso!', description: 'Bienvenido a ServiLocal.' })
     navigate(role === 'proveedor' ? '/proveedor' : '/cliente')
@@ -71,20 +80,42 @@ const handleRegister = async (e: React.FormEvent) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre</Label>
-              <Input placeholder="Juan" required />
+              <Input 
+                placeholder="Juan" 
+                value={form.name}
+                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label>Apellido</Label>
-              <Input placeholder="Pérez" required />
+              <Input 
+                placeholder="Pérez" 
+                value={form.last_name}
+                onChange={(e) => setForm(prev => ({ ...prev, last_name: e.target.value }))}
+                required 
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Correo electrónico</Label>
-            <Input type="email" placeholder="correo@ejemplo.com" required />
+            <Input 
+              type="email" 
+              placeholder="correo@ejemplo.com" 
+              value={form.email}
+              onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+              required 
+            />
           </div>
           <div className="space-y-2">
             <Label>Teléfono</Label>
-            <Input type="tel" placeholder="+57 300 000 0000" required />
+            <Input 
+              type="tel" 
+              placeholder="+57 300 000 0000" 
+              value={form.phone}
+              onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+              required 
+            />
           </div>
           {role === "proveedor" && (
             <div className="space-y-2">
@@ -102,10 +133,26 @@ const handleRegister = async (e: React.FormEvent) => {
           )}
           <div className="space-y-2">
             <Label>Contraseña</Label>
-            <Input type="password" placeholder="Mínimo 8 caracteres" required />
+            <Input 
+              type="password" 
+              placeholder="Mínimo 8 caracteres" 
+              value={form.password}
+              onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
+              required 
+            />
           </div>
-          <Button type="submit" className="w-full" size="lg">
-            Registrarse como {role === "proveedor" ? "Proveedor" : "Cliente"}
+          <div className="space-y-2">
+            <Label>Confirmar Contraseña</Label>
+            <Input 
+              type="password" 
+              placeholder="Repite tu contraseña" 
+              value={form.password_confirmation}
+              onChange={(e) => setForm(prev => ({ ...prev, password_confirmation: e.target.value }))}
+              required 
+            />
+          </div>
+          <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            {isLoading ? 'Registrando...' : `Registrarse como ${role === "proveedor" ? "Proveedor" : "Cliente"}`}
           </Button>
         </form>
 

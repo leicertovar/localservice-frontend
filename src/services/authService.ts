@@ -9,9 +9,12 @@ export interface AuthResponse {
 
 export interface RegisterData {
   name: string
+  last_name: string
   email: string
+  phone: string
   password: string
   password_confirmation: string
+  role?: string
 }
 
 export const login = async (
@@ -27,9 +30,8 @@ export const login = async (
 export const register = async (
   payload: RegisterData
 ): Promise<AuthResponse> => {
-  // El backend usa "registrer" (nota el typo)
   const { data } = await api.post<AuthResponse>(
-    '/auth/registrer', payload
+    '/auth/register', payload
   )
   localStorage.setItem('access_token', data.access_token)
   return data
