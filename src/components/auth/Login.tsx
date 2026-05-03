@@ -87,10 +87,6 @@ const handleLogin = async (e: React.FormEvent) => {
           <p className="text-center text-sm text-muted-foreground">
             ¿No tienes cuenta? <Link to="/registro" className="text-primary font-medium hover:underline">Regístrate aquí</Link>
           </p>
-
-          <div className="text-xs text-center text-muted-foreground bg-muted p-3 rounded-lg">
-            <strong>Demo:</strong> Usa "admin@", "proveedor@" o cualquier email para acceder a diferentes paneles.
-          </div>
         </div>
       </div>
     </div>
