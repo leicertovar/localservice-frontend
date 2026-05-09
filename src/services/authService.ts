@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string
   phone: string
   city: string
+  role?: string
   [key: string]: any
 }
 
@@ -59,10 +60,11 @@ export const login = async (
     '/auth/login', { email, password }
   )
   localStorage.setItem('access_token', data.access_token)
-  if (data.user) {
-    setUserProfile(data.user)
+  const currentUser = await fetchCurrentUser()
+  return {
+    ...data,
+    user: currentUser,
   }
-  return data
 }
 
 export const register = async (
@@ -72,10 +74,11 @@ export const register = async (
     '/auth/register', payload
   )
   localStorage.setItem('access_token', data.access_token)
-  if (data.user) {
-    setUserProfile(data.user)
+  const currentUser = await fetchCurrentUser()
+  return {
+    ...data,
+    user: currentUser,
   }
-  return data
 }
 
 export const logout = async () => {

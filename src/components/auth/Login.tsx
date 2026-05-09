@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { login } from '@/services/authService'
+import { fetchCurrentUser, login } from '@/services/authService'
 import { useAuth } from '@/context/AuthContext'
 
 const Login = () => {
@@ -15,7 +15,7 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Dentro del componente Login, agrega:
+// Dentro del componente Login, agrega:
 const { setLoggedIn } = useAuth()
 const [isLoading, setIsLoading] = useState(false)
 
@@ -24,10 +24,19 @@ const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault()
   setIsLoading(true)
   try {
-    await login(email, password)
+    const response = await login(email, password)
     setLoggedIn(true)
     toast({ title: '¡Bienvenido!', description: 'Inicio de sesión exitoso.' })
-    navigate('/cliente') // ajusta según el rol
+
+    const currentUser = response.user ?? await fetchCurrentUser()
+    const role = String(currentUser.role ?? 'cliente').toLowerCase()
+    const roleRoute = role.includes('proveedor') || role.includes('provider')
+      ? '/proveedor'
+      : role.includes('admin')
+        ? '/'
+        : '/cliente'
+
+    navigate(roleRoute)
   } catch (err: any) {
     const msg = err.response?.data?.message || 'Credenciales incorrectas'
     toast({ title: 'Error', description: msg, variant: 'destructive' })
