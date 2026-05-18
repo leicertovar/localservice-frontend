@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import NotificationsPanel from "@/components/NotificationsPanel";
-import ChatPanel from "@/components/ChatPanel";
+import NotificationsPanel from "@/components/reusable/NotificationsPanel";
+import ChatPanel from "@/components/reusable/ChatPanel";
 import { fetchCurrentUser, getUserProfile } from "@/services/authService";
 
 const initialServices = [
