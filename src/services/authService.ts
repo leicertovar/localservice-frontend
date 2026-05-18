@@ -1,94 +1,214 @@
 import api from '@/lib/api'
 
-// Tipos que devuelve el backend
-export interface UserProfile {
-  name: string
+// Perfil de Usuario devuelto por el backend
+export interface PerfilUsuario {
+  id: string
+  nombre: string
+  apellido?: string
   email: string
-  phone: string
-  city: string
-  role?: string
+  telefono?: string
+  rol_id: number
+  esta_aprobado: boolean
+  rol?: {
+    id: number
+    nombre: string
+    nombre_mostrar: string
+    descripcion?: string
+  }
+  perfil_cliente?: {
+    id: number
+    direccion?: string
+    ciudad?: string
+    foto_perfil?: string
+    preferencias?: string
+  }
+  perfil_proveedor?: {
+    id: number
+    categoria_servicio: string
+    biografia?: string
+    anios_experiencia: number
+    precio_por_hora: number
+    habilidades?: string
+    enlaces_portafolio?: string
+    horario_atencion?: string
+    calificacion: number
+    total_resenas: number
+    url_documento?: string
+    esta_verificado: boolean
+  }
   [key: string]: any
 }
 
-export interface AuthResponse {
-  access_token: string
-  token_type: string
-  message?: string
-  user?: UserProfile
+// Estructura de respuesta de autenticación del backend
+export interface RespuestaAutenticacion {
+  token_acceso: string
+  tipo_token: string
+  mensaje?: string
+  usuario?: PerfilUsuario
+  user?: PerfilUsuario // Alias para compatibilidad con paneles
 }
 
-export interface RegisterData {
-  name: string
-  last_name: string
+// Datos necesarios para registrar un usuario
+export interface DatosRegistro {
+  nombre: string
+  apellido?: string
   email: string
-  phone: string
-  password: string
-  password_confirmation: string
-  role?: string
+  telefono?: string
+  password?: string
+  password_confirmation?: string
+  rol: 'cliente' | 'proveedor'
+  // Campos del Proveedor
+  categoria_servicio?: string
+  biografia?: string
+  anios_experiencia?: number
+  precio_por_hora?: number
+  habilidades?: string
+  horario_atencion?: string
+  documento?: File // Documento de validación (PDF o imagen)
+  // Campos del Cliente
+  direccion?: string
+  ciudad?: string
 }
 
-const USER_PROFILE_KEY = 'user_profile'
+// Mapeos de tipos para mantener compatibilidad absoluta en TypeScript
+export type UserProfile = PerfilUsuario;
+export type AuthResponse = RespuestaAutenticacion;
+export type RegisterData = DatosRegistro;
 
-export const setUserProfile = (profile: UserProfile) => {
-  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile))
+const CLAVE_PERFIL_LOCAL = 'user_profile'
+
+/**
+ * Guarda el perfil del usuario autenticado en el almacenamiento local de sesión (localStorage)
+ */
+export const guardarPerfilUsuario = (perfil: PerfilUsuario) => {
+  localStorage.setItem(CLAVE_PERFIL_LOCAL, JSON.stringify(perfil))
 }
+export const setUserProfile = guardarPerfilUsuario; // Alias de compatibilidad
 
-export const getUserProfile = (): UserProfile | null => {
-  const stored = localStorage.getItem(USER_PROFILE_KEY)
-  if (!stored) return null
+/**
+ * Recupera el perfil del usuario almacenado en la sesión local
+ */
+export const obtenerPerfilUsuario = (): PerfilUsuario | null => {
+  const guardado = localStorage.getItem(CLAVE_PERFIL_LOCAL)
+  if (!guardado) return null
   try {
-    return JSON.parse(stored)
+    return JSON.parse(guardado)
   } catch {
     return null
   }
 }
+export const getUserProfile = obtenerPerfilUsuario; // Alias de compatibilidad
 
-export const clearUserProfile = () => {
-  localStorage.removeItem(USER_PROFILE_KEY)
+/**
+ * Elimina el perfil de usuario del almacenamiento local de sesión
+ */
+export const limpiarPerfilUsuario = () => {
+  localStorage.removeItem(CLAVE_PERFIL_LOCAL)
 }
+export const clearUserProfile = limpiarPerfilUsuario; // Alias de compatibilidad
 
-export const fetchCurrentUser = async (): Promise<UserProfile> => {
-  const { data } = await api.get<UserProfile>('/auth/me')
-  setUserProfile(data)
+/**
+ * Consume el endpoint '/auth/mi-perfil' para obtener los datos completos del usuario autenticado.
+ * Carga el rol, perfiles asociados en la base de datos y los persiste en localStorage.
+ */
+export const obtenerUsuarioActual = async (): Promise<PerfilUsuario> => {
+  const { data } = await api.get<PerfilUsuario>('/auth/mi-perfil')
+  guardarPerfilUsuario(data)
   return data
 }
+export const fetchCurrentUser = obtenerUsuarioActual; // Alias de compatibilidad
 
-export const login = async (
-  email: string, password: string
-): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>(
-    '/auth/login', { email, password }
+/**
+ * Realiza la autenticación del usuario mediante correo y contraseña.
+ * Si es exitoso, almacena el token JWT y carga el perfil completo del usuario.
+ */
+export const iniciarSesion = async (
+  email: string,
+  contrasenia: string
+): Promise<RespuestaAutenticacion> => {
+  const { data } = await api.post<RespuestaAutenticacion>(
+    '/auth/login',
+    { email, password: contrasenia }
   )
-  localStorage.setItem('access_token', data.access_token)
-  const currentUser = await fetchCurrentUser()
+  
+  // Guardamos el token JWT retornado en el localStorage
+  localStorage.setItem('access_token', data.token_acceso)
+  
+  // Obtenemos el perfil completo recién cargado
+  const usuarioCompleto = await obtenerUsuarioActual()
+  
   return {
     ...data,
-    user: currentUser,
+    usuario: usuarioCompleto,
+    user: usuarioCompleto // Duplicado para compatibilidad con código en inglés
   }
 }
+export const login = iniciarSesion; // Alias de compatibilidad
 
-export const register = async (
-  payload: RegisterData
-): Promise<AuthResponse> => {
-  const { data } = await api.post<AuthResponse>(
-    '/auth/register', payload
+/**
+ * Registra un nuevo usuario en la base de datos de LocalService.
+ * Construye de forma automatizada un objeto FormData para soportar la subida del documento.
+ */
+export const registrarUsuario = async (
+  datos: DatosRegistro
+): Promise<RespuestaAutenticacion> => {
+  const formData = new FormData()
+  
+  // Rellenamos el FormData con todos los campos provistos
+  Object.entries(datos).forEach(([llave, valor]) => {
+    if (valor !== undefined && valor !== null) {
+      if (llave === 'documento' && valor instanceof File) {
+        formData.append('documento', valor)
+      } else {
+        formData.append(llave, String(valor))
+      }
+    }
+  })
+
+  // Enviamos la petición multipart/form-data al endpoint en español
+  const { data } = await api.post<RespuestaAutenticacion>(
+    '/auth/registro',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
   )
-  localStorage.setItem('access_token', data.access_token)
-  const currentUser = await fetchCurrentUser()
+
+  // Si el backend devuelve un token directo, lo persistimos
+  if (data.token_acceso) {
+    localStorage.setItem('access_token', data.token_acceso)
+  }
+
+  // Cargamos los datos del perfil del usuario registrado
+  const usuarioCompleto = await obtenerUsuarioActual()
+
   return {
     ...data,
-    user: currentUser,
+    usuario: usuarioCompleto,
+    user: usuarioCompleto // Alias de compatibilidad
   }
 }
+export const register = registrarUsuario; // Alias de compatibilidad
 
-export const logout = async () => {
+/**
+ * Cierra la sesión activa en el servidor e invalida el token localmente.
+ */
+export const cerrarSesion = async () => {
   try {
-    await api.post('/auth/logout')
+    await api.post('/auth/cerrar-sesion')
   } finally {
+    // Nos aseguramos de limpiar la sesión local pase lo que pase con la petición
     localStorage.removeItem('access_token')
-    clearUserProfile()
+    limpiarPerfilUsuario()
   }
 }
+export const logout = cerrarSesion; // Alias de compatibilidad
 
-export const isAuthenticated = () =>
+/**
+ * Verifica si existe una sesión activa basándose en la presencia del token JWT.
+ */
+export const estaAutenticado = () =>
   Boolean(localStorage.getItem('access_token'))
+export const isAuthenticated = estaAutenticado; // Alias de compatibilidad
