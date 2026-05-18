@@ -212,3 +212,56 @@ export const logout = cerrarSesion; // Alias de compatibilidad
 export const estaAutenticado = () =>
   Boolean(localStorage.getItem('access_token'))
 export const isAuthenticated = estaAutenticado; // Alias de compatibilidad
+
+/**
+ * Administrador: Obtiene la lista completa de todos los usuarios registrados
+ */
+export const obtenerUsuariosAdmin = async (): Promise<PerfilUsuario[]> => {
+  const { data } = await api.get<{ usuarios: PerfilUsuario[] }>('/auth/admin/usuarios')
+  return data.usuarios
+}
+
+/**
+ * Administrador: Elimina a un usuario por su ID
+ */
+export const eliminarUsuarioAdmin = async (id: string | number): Promise<void> => {
+  await api.delete(`/auth/admin/usuarios/${id}`)
+}
+
+/**
+ * Administrador: Obtiene la lista de proveedores en espera de aprobación
+ */
+export const obtenerProveedoresPendientesAdmin = async (): Promise<PerfilUsuario[]> => {
+  const { data } = await api.get<{ proveedores_pendientes: PerfilUsuario[] }>('/auth/admin/proveedores-pendientes')
+  return data.proveedores_pendientes
+}
+
+/**
+ * Administrador: Aprueba la verificación de un proveedor
+ */
+export const aprobarProveedorAdmin = async (id: string | number): Promise<void> => {
+  await api.post(`/auth/admin/aprobar-proveedor/${id}`)
+}
+
+/**
+ * Administrador: Rechaza la verificación de un proveedor
+ */
+export const rechazarProveedorAdmin = async (id: string | number): Promise<void> => {
+  await api.post(`/auth/admin/rechazar-proveedor/${id}`)
+}
+
+/**
+ * Administrador: Obtiene estadísticas agregadas de la plataforma en tiempo real
+ */
+export const obtenerEstadisticasAdmin = async (): Promise<{
+  total_usuarios: number
+  proveedores_verificados: number
+  verificaciones_pendientes: number
+  resenas_reportadas: number
+  clientes_count: number
+  proveedores_count: number
+  categorias: { categoria_servicio: string; total: number }[]
+}> => {
+  const { data } = await api.get('/auth/admin/estadisticas')
+  return data
+}

@@ -8,6 +8,7 @@ import PanelCliente from "./pages/PanelCliente/ClientPanel";
 import ProviderDetail from "./pages/PanelCliente/ProviderDetail";
 import ProviderPanel from "./pages/PanelProveedor/ProviderPanel";
 import AdminPanel from "./pages/PanelAdmin/AdminPanel";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const AppRoutes = () => (
   <Routes>
@@ -17,12 +18,28 @@ const AppRoutes = () => (
     <Route path="/registro" element={<Register />} />
     <Route path="/recuperar-contrasena" element={<ResetPassword />} />
     {/* rutas del cliente */}
-    <Route path="/cliente" element={<PanelCliente />} />
-    <Route path="/proveedor/:id" element={<ProviderDetail />} />
+    <Route path="/cliente" element={
+      <ProtectedRoute rolRequerido="cliente">
+        <PanelCliente />
+      </ProtectedRoute>
+    } />
+    <Route path="/proveedor/:id" element={
+      <ProtectedRoute rolRequerido="cliente">
+        <ProviderDetail />
+      </ProtectedRoute>
+    } />
     {/* rutas del proveedor */}
-    <Route path="/proveedor" element={<ProviderPanel />} />
+    <Route path="/proveedor" element={
+      <ProtectedRoute rolRequerido="proveedor">
+        <ProviderPanel />
+      </ProtectedRoute>
+    } />
     {/* rutas del admin */}
-    <Route path="/admin" element={<AdminPanel />} />
+    <Route path="/admin" element={
+      <ProtectedRoute rolRequerido="admin">
+        <AdminPanel />
+      </ProtectedRoute>
+    } />
     {/* ruta de 404 no encontrada */}
     <Route path="*" element={<NotFound />} />
   </Routes>

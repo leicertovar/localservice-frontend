@@ -55,7 +55,7 @@ const Login = () => {
       const rutaRedireccion = nombreRolMinusc.includes('proveedor')
         ? '/proveedor'
         : nombreRolMinusc.includes('admin')
-          ? '/'
+          ? '/admin'
           : '/cliente'
 
       navigate(rutaRedireccion)
