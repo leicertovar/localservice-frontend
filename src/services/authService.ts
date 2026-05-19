@@ -265,3 +265,24 @@ export const obtenerEstadisticasAdmin = async (): Promise<{
   const { data } = await api.get('/auth/admin/estadisticas')
   return data
 }
+
+/**
+ * Solicita el enlace de recuperación de contraseña enviando el correo electrónico al backend.
+ */
+export const solicitarRecuperacionPassword = async (email: string): Promise<any> => {
+  const { data } = await api.post('/auth/recuperar-password', { email })
+  return data
+}
+
+/**
+ * Envía la solicitud para restablecer la contraseña usando el correo, token y nueva contraseña.
+ */
+export const restablecerPassword = async (datos: {
+  email: string
+  token: string
+  password?: string
+  password_confirmation?: string
+}): Promise<any> => {
+  const { data } = await api.post('/auth/restablecer-password', datos)
+  return data
+}
