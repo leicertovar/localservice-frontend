@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, MapPin, Star, Clock, MessageCircle, History, User, LogOut, Bell, Filter, ChevronRight, FileText, Download, X, SlidersHorizontal } from "lucide-react";
+import { Search, MapPin, Star, Clock, MessageCircle, History, User, LogOut, Bell, Filter, ChevronRight, FileText, Download, SlidersHorizontal, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,26 +13,27 @@ import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import ChatPanel from "@/components/reusable/ChatPanel";
 import { fetchCurrentUser, getUserProfile, UserProfile } from "@/services/authService";
+import { obtenerProveedores } from "@/services/proveedorService";
+import { 
+  obtenerSolicitudesCliente, 
+  aceptarCotizacion as apiAceptarCotizacion, 
+  rechazarCotizacion as apiRechazarCotizacion,
+  SolicitudServicioDatos
+} from "@/services/reservaService";
 
-const mockProviders = [
-  { id: 1, name: "Carlos Mendoza", category: "Plomería", rating: 4.9, reviews: 128, price: "$50.000/hora", location: "Buenaventura", available: true },
-];
-
-const mockRequests = [
-  { id: 1, service: "Reparación de tubería", provider: "Carlos Mendoza", status: "En progreso", date: "2026-04-05", statusColor: "bg-info/10 text-info", quote: "$85.000", quoteStatus: "Aceptada" },
-  { id: 2, service: "Instalación eléctrica", provider: "Jorge Ramírez", status: "Cotización recibida", date: "2026-04-08", statusColor: "bg-warning/10 text-warning", quote: "$250.000", quoteStatus: "Pendiente" },
-];
-
-const mockHistory = [
-  { id: 2, service: "Reparación eléctrica", provider: "Jorge Ramírez", date: "2026-03-15", total: "$180.000", rating: 4, invoiceId: "INV-2026-0038" },
-];
-
-const categories = ["Todas", "Plomería", "Electricidad", "Limpieza", "Pintura", "Jardinería", "Tecnología"];
+const categorias = ["Todas", "Plomería", "Electricidad", "Limpieza", "Pintura", "Jardinería", "Tecnología"];
 
 const ClientPanel = () => {
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
+  
+  // --- Estados de Datos de API ---
+  const [proveedores, setProveedores] = useState<any[]>([]);
+  const [solicitudes, setSolicitudes] = useState<SolicitudServicioDatos[]>([]);
+  const [cargandoProveedores, setCargandoProveedores] = useState(true);
+
+  // --- Estados de Interfaz ---
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContact, setChatContact] = useState({ name: "", initials: "", role: "" });
@@ -45,6 +46,7 @@ const ClientPanel = () => {
   const [reviewTarget, setReviewTarget] = useState({ service: "", provider: "" });
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+
   const [profileData, setProfileData] = useState<UserProfile>({
     name: "",
     email: "",
@@ -54,75 +56,143 @@ const ClientPanel = () => {
   const [editProfile, setEditProfile] = useState<UserProfile>(profileData);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      const storedProfile = getUserProfile()
-      if (storedProfile) {
-        setProfileData(storedProfile)
-        setEditProfile(storedProfile)
-        return
-      }
-
-      try {
-        const currentUser = await fetchCurrentUser()
-        setProfileData(currentUser)
-        setEditProfile(currentUser)
-      } catch (error) {
-        console.error("Error cargando perfil del usuario:", error)
-      }
+  /**
+   * Carga el perfil del usuario autenticado.
+   */
+  const cargarPerfil = async () => {
+    const perfilGuardado = getUserProfile();
+    if (perfilGuardado) {
+      setProfileData(perfilGuardado);
+      setEditProfile(perfilGuardado);
+      return;
     }
 
-    loadProfile()
-  }, [])
+    try {
+      const usuarioActual = await fetchCurrentUser();
+      setProfileData(usuarioActual);
+      setEditProfile(usuarioActual);
+    } catch (error) {
+      console.error("Error al cargar perfil del usuario:", error);
+    }
+  };
 
-  // Read search params from landing page
+  /**
+   * Carga el listado de proveedores desde el backend.
+   */
+  const cargarProveedores = async () => {
+    try {
+      const datos = await obtenerProveedores();
+      setProveedores(datos);
+    } catch (error) {
+      console.error("Error al obtener proveedores:", error);
+    } finally {
+      setCargandoProveedores(false);
+    }
+  };
+
+  /**
+   * Carga las solicitudes del cliente desde la API.
+   */
+  const cargarSolicitudesCliente = async () => {
+    try {
+      const datos = await obtenerSolicitudesCliente();
+      setSolicitudes(datos);
+    } catch (error) {
+      console.error("Error al obtener solicitudes del cliente:", error);
+    }
+  };
+
+  // Carga inicial al montar el componente
+  useEffect(() => {
+    cargarPerfil();
+    cargarProveedores();
+    cargarSolicitudesCliente();
+  }, []);
+
+  // Leer parámetros de búsqueda de la URL (si vienen de la Landing Page)
   useEffect(() => {
     const q = searchParams.get("q");
     const cat = searchParams.get("categoria");
     if (q) setSearchTerm(q);
-    if (cat && categories.includes(cat)) setSelectedCategory(cat);
+    if (cat && categorias.includes(cat)) setSelectedCategory(cat);
   }, [searchParams]);
 
-  const filteredProviders = mockProviders.filter(p => {
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory = selectedCategory === "Todas" || p.category === selectedCategory;
-    const matchLocation = !filterLocation || p.location.toLowerCase().includes(filterLocation.toLowerCase());
-    const matchAvailable = !filterAvailable || p.available;
-    const matchRating = p.rating >= filterMinRating;
-    return matchSearch && matchCategory && matchLocation && matchAvailable && matchRating;
+  // Filtrado de proveedores en el frontend
+  const proveedoresFiltrados = proveedores.filter(p => {
+    const coincideBusqueda = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const coincideCategoria = selectedCategory === "Todas" || p.category === selectedCategory;
+    const coincideUbicacion = !filterLocation || p.location.toLowerCase().includes(filterLocation.toLowerCase());
+    const coincideDisponibilidad = !filterAvailable || p.available;
+    const coincideCalificacion = p.rating >= filterMinRating;
+    return coincideBusqueda && coincideCategoria && coincideUbicacion && coincideDisponibilidad && coincideCalificacion;
   });
 
-  const openChat = (name: string) => {
-    const initials = name.split(" ").map(n => n[0]).join("");
-    setChatContact({ name, initials, role: "Proveedor de servicios" });
+  /**
+   * Abre la ventana de chat directo con el proveedor.
+   */
+  const abrirChatConProveedor = (nombre: string) => {
+    const iniciales = nombre.split(" ").map(n => n[0]).join("");
+    setChatContact({ name: nombre, initials, role: "Proveedor de servicios" });
     setChatOpen(true);
   };
 
-  const handleAcceptQuote = (id: number) => {
-    toast({ title: "Cotización aceptada", description: `Has aceptado la cotización de la solicitud #${id}. El proveedor será notificado.` });
+  /**
+   * Envía la confirmación al servidor para aceptar la cotización.
+   */
+  const aceptarCotizacionProveedor = async (id: number) => {
+    try {
+      await apiAceptarCotizacion(id);
+      toast({ 
+        title: "Cotización aceptada", 
+        description: `Has aceptado la cotización y el servicio ha sido agendado. El proveedor ya lo ve en su agenda.` 
+      });
+      cargarSolicitudesCliente();
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "No se pudo aceptar la cotización en este momento.", variant: "destructive" });
+    }
   };
 
-  const handleRejectQuote = (id: number) => {
-    toast({ title: "Cotización rechazada", description: `La cotización #${id} ha sido rechazada.`, variant: "destructive" });
+  /**
+   * Envía la denegación al servidor para rechazar la cotización.
+   */
+  const rechazarCotizacionProveedor = async (id: number) => {
+    try {
+      await apiRechazarCotizacion(id);
+      toast({ 
+        title: "Cotización rechazada", 
+        description: `Has rechazado la cotización. El estado se ha actualizado a 'rechazada'.`,
+        variant: "destructive"
+      });
+      cargarSolicitudesCliente();
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "No se pudo rechazar la cotización en este momento.", variant: "destructive" });
+    }
   };
 
-  const handleDownloadInvoice = (invoiceId: string) => {
+  const descargarFacturaServicio = (invoiceId: string) => {
     toast({ title: "Descargando factura", description: `Factura ${invoiceId} descargándose...` });
   };
 
-  const handleSaveProfile = () => {
+  const guardarCambiosPerfil = () => {
     setProfileData(editProfile);
     setEditProfileOpen(false);
     toast({ title: "Perfil actualizado", description: "Tus datos han sido guardados correctamente." });
   };
 
-  const handleSubmitReview = () => {
+  const publicarResenaCliente = () => {
     if (!reviewComment.trim()) return;
     setReviewDialogOpen(false);
     setReviewComment("");
     setReviewRating(5);
     toast({ title: "Reseña publicada", description: `Tu calificación de ${reviewRating} estrellas para "${reviewTarget.service}" ha sido publicada.` });
   };
+
+  // Historial de servicios estáticos (Mock)
+  const mockHistory = [
+    { id: 2, service: "Reparación eléctrica", provider: "Jorge Ramírez", date: "2026-03-15", total: "$180.000", rating: 4, invoiceId: "INV-2026-0038" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,17 +204,22 @@ const ClientPanel = () => {
               <span className="text-primary-foreground font-bold text-sm">LS</span>
             </div>
             <span className="font-bold text-foreground">LocalService</span>
+            <Badge variant="secondary" className="text-xs">Cliente</Badge>
           </Link>
           <div className="flex items-center gap-3">
             <div className="relative">
               <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">3</span>
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                  {solicitudes.filter(s => s.estado === 'cotizado').length}
+                </span>
               </Button>
               <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
             </div>
             <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">JU</AvatarFallback>
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
+              </AvatarFallback>
             </Avatar>
             <Button variant="ghost" size="icon" asChild>
               <Link to="/"><LogOut className="w-4 h-4" /></Link>
@@ -155,18 +230,19 @@ const ClientPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">¡Hola, {profileData.name.split(" ")[0]}! 👋</h1>
+          <h1 className="text-2xl font-bold text-foreground">¡Hola, {profileData.name ? profileData.name.split(" ")[0] : "Cliente"}! 👋</h1>
           <p className="text-muted-foreground">¿Qué servicio necesitas hoy?</p>
         </div>
 
         <Tabs defaultValue="buscar" className="space-y-6">
-          <TabsList className="bg-muted">
-            <TabsTrigger value="buscar" className="gap-2"><Search className="w-4 h-4" />Buscar</TabsTrigger>
-            <TabsTrigger value="solicitudes" className="gap-2"><Clock className="w-4 h-4" />Solicitudes</TabsTrigger>
+          <TabsList className="bg-muted flex-wrap">
+            <TabsTrigger value="buscar" className="gap-2"><Search className="w-4 h-4" />Buscar Proveedor</TabsTrigger>
+            <TabsTrigger value="solicitudes" className="gap-2"><Clock className="w-4 h-4" />Mis Solicitudes</TabsTrigger>
             <TabsTrigger value="historial" className="gap-2"><History className="w-4 h-4" />Historial</TabsTrigger>
             <TabsTrigger value="perfil" className="gap-2"><User className="w-4 h-4" />Mi Perfil</TabsTrigger>
           </TabsList>
 
+          {/* Tab de Búsqueda */}
           <TabsContent value="buscar" className="space-y-6">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-3">
@@ -182,7 +258,7 @@ const ClientPanel = () => {
                 </Button>
               </div>
 
-              {/* Filters Panel */}
+              {/* Panel de Filtros */}
               {filtersOpen && (
                 <div className="bg-card border rounded-xl p-5 space-y-4 animate-in slide-in-from-top-2">
                   <div className="flex items-center justify-between">
@@ -222,7 +298,7 @@ const ClientPanel = () => {
               )}
 
               <div className="flex gap-2 flex-wrap">
-                {categories.map(cat => (
+                {categorias.map(cat => (
                   <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(cat)} className="text-xs">
                     {cat}
                   </Button>
@@ -230,81 +306,136 @@ const ClientPanel = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredProviders.length === 0 ? (
-                <div className="col-span-full text-center py-12">
-                  <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-foreground font-medium">No se encontraron proveedores</p>
-                  <p className="text-sm text-muted-foreground">Intenta con otros filtros o categorías</p>
-                </div>
-              ) : filteredProviders.map(provider => (
-                <div key={provider.id} className="bg-card rounded-xl border p-5 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-3 mb-4">
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">{provider.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <Link to={`/proveedor/${provider.id}`} className="font-semibold text-foreground hover:text-primary transition-colors">{provider.name}</Link>
-                      <p className="text-sm text-muted-foreground">{provider.category}</p>
+            {/* Listado de Proveedores de la API */}
+            {cargandoProveedores ? (
+              <p className="text-muted-foreground text-sm text-center py-12">Obteniendo proveedores de servicios en la zona...</p>
+            ) : proveedoresFiltrados.length === 0 ? (
+              <div className="text-center py-12 border rounded-xl bg-card">
+                <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-medium">No se encontraron proveedores</p>
+                <p className="text-sm text-muted-foreground">Intenta con otros filtros o categorías</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {proveedoresFiltrados.map(provider => (
+                  <div key={provider.id} className="bg-card rounded-xl border p-5 hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-3 mb-4">
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {provider.name ? provider.name.split(" ").map((n: string) => n[0]).join("") : "PV"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <Link to={`/proveedor/${provider.id}`} className="font-semibold text-foreground hover:text-primary transition-colors">{provider.name}</Link>
+                        <p className="text-sm text-muted-foreground">{provider.category}</p>
+                      </div>
+                      <Badge variant={provider.available ? "default" : "secondary"} className="text-xs">{provider.available ? "Disponible" : "Ocupado"}</Badge>
                     </div>
-                    <Badge variant={provider.available ? "default" : "secondary"} className="text-xs">{provider.available ? "Disponible" : "Ocupado"}</Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1"><Star className="w-4 h-4 text-warning fill-warning" />{provider.rating} ({provider.reviews})</span>
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{provider.location}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{provider.price}</span>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openChat(provider.name)}><MessageCircle className="w-4 h-4" /></Button>
-                      <Button size="sm" asChild><Link to={`/proveedor/${provider.id}`}>Ver perfil<ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-1"><Star className="w-4 h-4 text-warning fill-warning" />{provider.rating} ({provider.reviews})</span>
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{provider.location}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground">{provider.price}</span>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => abrirChatConProveedor(provider.name)}><MessageCircle className="w-4 h-4" /></Button>
+                        <Button size="sm" asChild><Link to={`/proveedor/${provider.id}`}>Ver perfil<ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
+          {/* Tab de Solicitudes */}
           <TabsContent value="solicitudes" className="space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Mis Solicitudes y Cotizaciones</h2>
-            {mockRequests.map(req => (
-              <div key={req.id} className="bg-card rounded-xl border p-5">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground">{req.service}</h3>
-                      <Badge className={req.statusColor + " text-xs"}>{req.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Proveedor: {req.provider}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{req.date}</p>
-                    {req.quote && (
-                      <div className="mt-3 p-3 bg-muted rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Cotización</p>
-                            <p className="text-lg font-bold text-foreground">{req.quote}</p>
-                          </div>
-                          <Badge variant={req.quoteStatus === "Aceptada" ? "default" : "secondary"} className="text-xs">{req.quoteStatus}</Badge>
-                        </div>
+            {solicitudes.length === 0 ? (
+              <div className="bg-card border rounded-xl p-8 text-center text-muted-foreground text-sm">
+                Aún no has enviado solicitudes de cotización. Visita los perfiles de los proveedores para solicitar una.
+              </div>
+            ) : solicitudes.map(req => {
+              // Estilo del badge por estado
+              let estadoBadge = "bg-muted text-muted-foreground";
+              let estadoTexto = req.estado;
+              if (req.estado === 'pendiente') {
+                estadoBadge = "bg-info/10 text-info";
+                estadoTexto = "Pendiente de Cotizar";
+              } else if (req.estado === 'cotizado') {
+                estadoBadge = "bg-warning/10 text-warning";
+                estadoTexto = "Cotización Recibida";
+              } else if (req.estado === 'aceptada') {
+                estadoBadge = "bg-success/10 text-success";
+                estadoTexto = "Confirmado / Agendado";
+              } else if (req.estado === 'rechazada') {
+                estadoBadge = "bg-destructive/10 text-destructive";
+                estadoTexto = "Rechazada";
+              } else if (req.estado === 'completada') {
+                estadoBadge = "bg-success text-success-foreground";
+                estadoTexto = "Trabajo Completado";
+              }
+
+              const proveedorNombre = req.proveedor ? `${req.proveedor.nombre} ${req.proveedor.apellido || ""}`.trim() : "Proveedor";
+
+              return (
+                <div key={req.id} className="bg-card rounded-xl border p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{req.servicio?.nombre || "Servicio Personalizado"}</h3>
+                        <Badge className={`${estadoBadge} text-xs`}>{estadoTexto}</Badge>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {req.quoteStatus === "Pendiente" && (
-                      <>
-                        <Button size="sm" onClick={() => handleAcceptQuote(req.id)}>Aceptar cotización</Button>
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleRejectQuote(req.id)}>Rechazar</Button>
-                      </>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => openChat(req.provider)}>
-                      <MessageCircle className="w-4 h-4 mr-1" />Chat
-                    </Button>
+                      <p className="text-sm text-muted-foreground">Proveedor: {proveedorNombre}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Fecha programada: {req.fecha} · Hora: {req.hora}</p>
+                      
+                      {req.estado === 'cotizado' && req.monto_cotizado && (
+                        <div className="mt-3 p-3 bg-muted/60 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Monto Cotizado</p>
+                              <p className="text-lg font-bold text-primary">{req.monto_cotizado}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Tiempo de Ejecución</p>
+                              <p className="text-sm font-semibold text-foreground">{req.tiempo_estimado}</p>
+                            </div>
+                          </div>
+                          {req.garantia && (
+                            <p className="text-xs text-muted-foreground"><strong className="text-foreground">Garantía:</strong> {req.garantia}</p>
+                          )}
+                          {req.detalles_cotizacion && (
+                            <p className="text-xs text-muted-foreground mt-1"><strong className="text-foreground">Detalles del Proveedor:</strong> {req.detalles_cotizacion}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {req.estado === 'aceptada' && req.monto_cotizado && (
+                        <div className="mt-3 p-3 bg-success/5 border border-success/20 rounded-lg">
+                          <p className="text-xs text-muted-foreground">Monto acordado: <strong className="text-foreground">{req.monto_cotizado}</strong></p>
+                          <p className="text-xs text-muted-foreground">Tiempo de trabajo: <strong className="text-foreground">{req.tiempo_estimado}</strong></p>
+                          {req.garantia && <p className="text-xs text-muted-foreground">Garantía del trabajo: <strong className="text-foreground">{req.garantia}</strong></p>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {req.estado === 'cotizado' && req.id && (
+                        <>
+                          <Button size="sm" onClick={() => req.id && aceptarCotizacionProveedor(req.id)}>Aceptar cotización</Button>
+                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => req.id && rechazarCotizacionProveedor(req.id)}>Rechazar</Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => abrirChatConProveedor(proveedorNombre)}>
+                        <MessageCircle className="w-4 h-4 mr-1" />Chat
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </TabsContent>
 
+          {/* Tab de Historial */}
           <TabsContent value="historial" className="space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Historial de Servicios</h2>
             {mockHistory.map(item => (
@@ -332,7 +463,7 @@ const ClientPanel = () => {
                     }}>
                       <Star className="w-3 h-3" />Dejar reseña
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => handleDownloadInvoice(item.invoiceId)}>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => descargarFacturaServicio(item.invoiceId)}>
                       <Download className="w-3 h-3" />Factura
                     </Button>
                   </div>
@@ -344,12 +475,15 @@ const ClientPanel = () => {
             ))}
           </TabsContent>
 
+          {/* Tab de Perfil */}
           <TabsContent value="perfil" className="max-w-lg space-y-6">
             <h2 className="text-lg font-semibold text-foreground">Mi Perfil</h2>
             <div className="bg-card rounded-xl border p-6 space-y-4">
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">{profileData.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                    {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="font-bold text-foreground text-lg">{profileData.name}</h3>
@@ -357,9 +491,9 @@ const ClientPanel = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="text-xs text-muted-foreground">Teléfono</label><p className="text-sm font-medium text-foreground">{profileData.phone}</p></div>
-                <div><label className="text-xs text-muted-foreground">Ciudad</label><p className="text-sm font-medium text-foreground">{profileData.city}</p></div>
-                <div><label className="text-xs text-muted-foreground">Servicios solicitados</label><p className="text-sm font-medium text-foreground">12</p></div>
+                <div><label className="text-xs text-muted-foreground">Teléfono</label><p className="text-sm font-medium text-foreground">{profileData.phone || "No especificado"}</p></div>
+                <div><label className="text-xs text-muted-foreground">Ciudad</label><p className="text-sm font-medium text-foreground">{profileData.city || "No especificada"}</p></div>
+                <div><label className="text-xs text-muted-foreground">Servicios solicitados</label><p className="text-sm font-medium text-foreground">{solicitudes.length}</p></div>
                 <div><label className="text-xs text-muted-foreground">Miembro desde</label><p className="text-sm font-medium text-foreground">Marzo 2026</p></div>
               </div>
               <Button variant="outline" className="w-full" onClick={() => { setEditProfile(profileData); setEditProfileOpen(true); }}>Editar Perfil</Button>
@@ -393,7 +527,7 @@ const ClientPanel = () => {
               <Input value={editProfile.city} onChange={e => setEditProfile({ ...editProfile, city: e.target.value })} />
             </div>
             <div className="flex gap-2 pt-2">
-              <Button onClick={handleSaveProfile} className="flex-1">Guardar cambios</Button>
+              <Button onClick={guardarCambiosPerfil} className="flex-1">Guardar cambios</Button>
               <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
             </div>
           </div>
@@ -423,7 +557,7 @@ const ClientPanel = () => {
               <Textarea placeholder="Describe tu experiencia con este servicio..." rows={4} value={reviewComment} onChange={e => setReviewComment(e.target.value)} />
             </div>
             <div className="flex gap-2 pt-2">
-              <Button onClick={handleSubmitReview} className="flex-1" disabled={!reviewComment.trim()}>Publicar reseña</Button>
+              <Button onClick={publicarResenaCliente} className="flex-1" disabled={!reviewComment.trim()}>Publicar reseña</Button>
               <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
             </div>
           </div>
