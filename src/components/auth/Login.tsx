@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wrench, Eye, EyeOff } from "lucide-react";
+import { Wrench, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,64 +9,30 @@ import { obtenerUsuarioActual, iniciarSesion } from '@/services/authService'
 import { useAuth } from '@/context/AuthContext'
 
 const Login = () => {
-  // Estados para capturar correo, contraseña y visibilidad
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  
-  // Utilidades de la UI (toast para alertas, navigate para redirecciones)
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  // Consumimos el contexto global de autenticación para cambiar el estado de sesión
   const { setLoggedIn } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
-  /**
-   * Maneja el envío del formulario de inicio de sesión.
-   * Envía las credenciales al backend de Laravel en español.
-   */
   const manejarInicioSesion = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    
     try {
-      // 1. Ejecutar el login en el servicio y guardar el JWT token
       const respuesta = await iniciarSesion(email, password)
       setLoggedIn(true)
-      
-      toast({ 
-        title: '¡Bienvenido!', 
-        description: 'Inicio de sesión completado de forma exitosa.' 
-      })
-
-      // 2. Extraer el perfil del usuario autenticado
+      toast({ title: '¡Bienvenido!', description: 'Inicio de sesión completado de forma exitosa.' })
       const usuarioActual = respuesta.usuario ?? await obtenerUsuarioActual()
-      
-      // 3. Evaluar el rol del usuario de forma robusta (soporta objeto de rol o string directo)
       const rolObj = usuarioActual.rol
-      const nombreRol = typeof rolObj === 'object' && rolObj !== null 
-        ? rolObj.nombre 
-        : String(rolObj ?? 'cliente')
-        
+      const nombreRol = typeof rolObj === 'object' && rolObj !== null ? rolObj.nombre : String(rolObj ?? 'cliente')
       const nombreRolMinusc = nombreRol.toLowerCase()
-
-      // 4. Redirección dinámica basada en los roles relacionales en español
-      const rutaRedireccion = nombreRolMinusc.includes('proveedor')
-        ? '/proveedor'
-        : nombreRolMinusc.includes('admin')
-          ? '/admin'
-          : '/cliente'
-
+      const rutaRedireccion = nombreRolMinusc.includes('proveedor') ? '/proveedor' : nombreRolMinusc.includes('admin') ? '/admin' : '/cliente'
       navigate(rutaRedireccion)
     } catch (err: any) {
-      // Capturar errores del backend (como el bloqueo 403 por falta de aprobación del proveedor)
       const mensajeError = err.response?.data?.mensaje || 'Credenciales de acceso incorrectas.'
-      toast({ 
-        title: 'Error de acceso', 
-        description: mensajeError, 
-        variant: 'destructive' 
-      })
+      toast({ title: 'Error de acceso', description: mensajeError, variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -74,75 +40,115 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Columna Lateral Izquierda Informativa (Visible en laptops y pantallas grandes) */}
-      <div className="hidden lg:flex flex-1 bg-hero items-center justify-center p-12">
-        <div className="max-w-md text-primary-foreground">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
+      {/* Panel izquierdo decorativo */}
+      <div className="hidden lg:flex flex-1 bg-hero items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-white/30" />
+          <div className="absolute bottom-20 right-10 w-48 h-48 rounded-full bg-white/20" />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-white/15" />
+        </div>
+        <div className="max-w-sm text-white relative z-10">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30">
               <Wrench className="w-5 h-5 text-white" />
             </div>
-            <span className="text-2xl font-bold">LocalService</span>
+            <span className="text-2xl font-bold tracking-tight">LocalService</span>
           </div>
-          <h2 className="text-3xl font-bold mb-4">Conecta con los mejores profesionales de tu zona</h2>
-          <p className="text-primary-foreground/70">Plomería, electricidad, limpieza y más. Todo en un solo lugar.</p>
+          <h2 className="text-4xl font-bold mb-4 leading-tight">
+            Conecta con los mejores profesionales de tu zona
+          </h2>
+          <p className="text-white/70 text-lg leading-relaxed">
+            Plomería, electricidad, limpieza y más. Todo en un solo lugar, con garantía de calidad.
+          </p>
+          <div className="mt-10 flex flex-col gap-3">
+            {["Proveedores verificados", "Solicitudes en minutos", "Pagos seguros"].map(item => (
+              <div key={item} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-2 h-2 rounded-full bg-white" />
+                </div>
+                <span className="text-white/80 text-sm">{item}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Columna Derecha con el Formulario de Acceso */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center lg:text-left">
-            <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
-              <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">LocalService</span>
+      {/* Panel derecho con formulario */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-background">
+        <div className="w-full max-w-md">
+          {/* Logo móvil */}
+          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
+            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-md">
+              <Wrench className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Iniciar Sesión</h1>
-            <p className="text-sm text-muted-foreground mt-1">Ingresa tus credenciales para acceder</p>
+            <span className="text-xl font-bold text-foreground">LocalService</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-1.5">Iniciar Sesión</h1>
+            <p className="text-muted-foreground">Ingresa tus credenciales para acceder a tu cuenta</p>
           </div>
 
           <form onSubmit={manejarInicioSesion} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="correo@ejemplo.com" 
-                value={email} 
-                onChange={e => setEmail(e.target.value)} 
-                required 
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="correo@ejemplo.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                className="h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-sm font-medium text-foreground">Contraseña</Label>
+                <Link to="/recuperar-contrasena" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <div className="relative">
-                <Input 
-                  id="password" 
-                  type={showPass ? "text" : "password"} 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  required 
+                <Input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  className="h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 pr-10 focus-visible:ring-primary/25 focus-visible:border-primary/50"
                 />
-                <button 
-                  type="button" 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" 
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPass(!showPass)}
                 >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <Link to="/recuperar-contrasena" className="text-xs text-primary hover:underline">¿Olvidaste tu contraseña?</Link>
             </div>
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-11 rounded-xl font-semibold text-sm gap-2 shadow-sm"
+            >
+              {isLoading ? 'Iniciando sesión...' : (
+                <><span>Iniciar Sesión</span><ArrowRight className="w-4 h-4" /></>
+              )}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
-            ¿No tienes cuenta? <Link to="/registro" className="text-primary font-medium hover:underline">Regístrate aquí</Link>
-          </p>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              ¿No tienes cuenta?{' '}
+              <Link to="/registro" className="text-primary font-semibold hover:text-primary/80 transition-colors">
+                Regístrate gratis
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
