@@ -1,21 +1,24 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, Search, CheckCircle, XCircle, Eye, Trash2, AlertTriangle, FileText, Mail, Phone, Calendar } from "lucide-react";
+import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, Search, CheckCircle, XCircle, Eye, Trash2, AlertTriangle, FileText, Mail, Phone, Calendar, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
-import { 
-  obtenerUsuariosAdmin, 
-  eliminarUsuarioAdmin, 
-  aprobarProveedorAdmin, 
-  rechazarProveedorAdmin, 
-  obtenerEstadisticasAdmin 
+import {
+  obtenerUsuariosAdmin,
+  eliminarUsuarioAdmin,
+  aprobarProveedorAdmin,
+  rechazarProveedorAdmin,
+  obtenerEstadisticasAdmin
 } from '@/services/authService'
+import { obtenerResenasReportadas, moderarResena, type Resena } from '@/services/resenaService'
 
 interface UserData {
   id: string | number;
@@ -34,19 +37,17 @@ interface UserData {
   categoria_servicio?: string | null;
 }
 
-const flaggedReviews = [
-  { id: 1, reviewer: "Usuario Anónimo", provider: "Carlos Mendoza", rating: 1, comment: "Contenido inapropiado y ofensivo...", date: "2026-04-06", reason: "Lenguaje ofensivo" },
-  { id: 2, reviewer: "Test User", provider: "María López", rating: 1, comment: "Spam repetido sin sentido...", date: "2026-04-07", reason: "Spam" },
-  { id: 3, reviewer: "Bot Account", provider: "Pedro Silva", rating: 5, comment: "Review falsa generada automáticamente", date: "2026-04-08", reason: "Review falsa" },
-];
 
 const AdminPanel = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchUsers, setSearchUsers] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<UserData | null>(null);
   const [docsDialogUser, setDocsDialogUser] = useState<UserData | null>(null);
+  const [notaRechazo, setNotaRechazo] = useState("");
+  const [resenasReportadas, setResenasReportadas] = useState<Resena[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [stats, setStats] = useState({
@@ -92,11 +93,8 @@ const AdminPanel = () => {
    */
   const cargarDatos = async () => {
     try {
-      // 1. Obtener lista completa de usuarios
       const listaUsuarios = await obtenerUsuariosAdmin();
       setUsers(listaUsuarios.map(mapearUsuario));
-
-      // 2. Obtener estadísticas del backend en tiempo real
       const datosStats = await obtenerEstadisticasAdmin();
       setStats(datosStats);
     } catch (err: any) {
@@ -110,8 +108,16 @@ const AdminPanel = () => {
     }
   };
 
+  const cargarResenasReportadas = async () => {
+    try {
+      const resenas = await obtenerResenasReportadas();
+      setResenasReportadas(resenas);
+    } catch {}
+  };
+
   useEffect(() => {
     cargarDatos();
+    cargarResenasReportadas();
   }, []);
 
   // Filtrar los proveedores que tienen verificación pendiente
@@ -167,16 +173,18 @@ const AdminPanel = () => {
   };
 
   /**
-   * Administrador: Rechaza a un proveedor eliminando su solicitud de la plataforma.
+   * Administrador: Rechaza a un proveedor con nota opcional.
    */
-  const handleRejectVerification = async (userId: string | number) => {
+  const handleRejectVerification = async (userId: string | number, nota?: string) => {
     try {
-      await rechazarProveedorAdmin(userId);
-      toast({ 
-        title: "Verificación rechazada", 
-        description: "La solicitud ha sido rechazada y la cuenta ha sido cancelada.", 
-        variant: "destructive" 
+      await rechazarProveedorAdmin(userId, nota);
+      toast({
+        title: "Verificación rechazada",
+        description: "La solicitud ha sido rechazada y el proveedor fue notificado por correo.",
+        variant: "destructive"
       });
+      setDocsDialogUser(null);
+      setNotaRechazo("");
       await cargarDatos();
     } catch (err: any) {
       toast({
@@ -184,6 +192,19 @@ const AdminPanel = () => {
         description: err.response?.data?.mensaje || "No se pudo completar la operación.",
         variant: "destructive"
       });
+    }
+  };
+
+  /**
+   * Administrador: Modera una reseña reportada.
+   */
+  const handleModerarResena = async (id: number, accion: 'ocultar' | 'restaurar') => {
+    try {
+      await moderarResena(id, accion);
+      toast({ title: accion === 'ocultar' ? 'Reseña ocultada' : 'Reseña restaurada' });
+      cargarResenasReportadas();
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
     }
   };
 
@@ -213,11 +234,13 @@ const AdminPanel = () => {
             <div className="relative">
               <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-                  {pendingVerifications.length}
-                </span>
+                {(notifCount > 0 || pendingVerifications.length > 0) && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                    {notifCount || pendingVerifications.length}
+                  </span>
+                )}
               </Button>
-              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-foreground text-background text-xs">AD</AvatarFallback>
@@ -367,26 +390,45 @@ const AdminPanel = () => {
             )}
           </TabsContent>
 
-          {/* TAB 3: MODERACIÓN DE RESEÑAS */}
+          {/* TAB 3: MODERACIÓN DE RESEÑAS REALES */}
           <TabsContent value="resenas" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Moderación de Reseñas</h2>
-            {flaggedReviews.map(r => (
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Reseñas Reportadas</h2>
+              <Button variant="outline" size="sm" onClick={cargarResenasReportadas}>Actualizar</Button>
+            </div>
+            {resenasReportadas.length === 0 ? (
+              <div className="bg-card rounded-xl border p-8 text-center">
+                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
+                <p className="text-foreground font-medium">Sin reportes pendientes</p>
+                <p className="text-sm text-muted-foreground mt-1">No hay reseñas reportadas que necesiten revisión.</p>
+              </div>
+            ) : resenasReportadas.map(r => (
               <div key={r.id} className="bg-card rounded-xl border p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground text-sm">{r.reviewer}</h3>
-                      <span className="text-xs text-muted-foreground">→ {r.provider}</span>
+                      <h3 className="font-semibold text-foreground text-sm">
+                        {r.cliente ? `${r.cliente.nombre} ${r.cliente.apellido || ""}` : "Cliente"}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <span className="text-xs text-muted-foreground">Proveedor</span>
                     </div>
-                    <Badge className="text-xs bg-destructive/10 text-destructive mb-2">{r.reason}</Badge>
-                    <p className="text-sm text-muted-foreground">{r.comment}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{r.date}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex gap-0.5">
+                        {Array.from({length: r.calificacion}).map((_, i) => <Star key={i} className="w-3 h-3 text-warning fill-warning" />)}
+                      </div>
+                      {r.motivo_reporte && (
+                        <Badge className="text-xs bg-destructive/10 text-destructive">{r.motivo_reporte}</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{r.comentario}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{new Date(r.created_at).toLocaleDateString('es-CO')}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => toast({ title: "Reseña conservada", description: "La reseña ha sido marcada como válida." })}>Conservar</Button>
-                  <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => toast({ title: "Reseña eliminada", description: "La reseña ha sido eliminada del sistema.", variant: "destructive" })}>
-                    <Trash2 className="w-3 h-3" />Eliminar
+                  <Button size="sm" variant="outline" onClick={() => handleModerarResena(r.id, 'restaurar')}>Conservar reseña</Button>
+                  <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => handleModerarResena(r.id, 'ocultar')}>
+                    <Trash2 className="w-3 h-3" />Ocultar reseña
                   </Button>
                 </div>
               </div>
@@ -501,47 +543,85 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 3: DOCUMENTOS REALES DE VERIFICACIÓN */}
-      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) setDocsDialogUser(null); }}>
-        <DialogContent className="sm:max-w-md">
+      {/* DIALOG 3: DOCUMENTOS REALES DE VERIFICACIÓN CON NOTA */}
+      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) { setDocsDialogUser(null); setNotaRechazo(""); } }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Documentos del Proveedor</DialogTitle>
-            <DialogDescription>Revisa el documento de identidad / RUT / Certificado cargado por el proveedor</DialogDescription>
+            <DialogTitle>Verificación de Documentos</DialogTitle>
+            <DialogDescription>Revisa los documentos de {docsDialogUser?.name} y toma una decisión.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Info del proveedor */}
+            <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+              <p><strong>Proveedor:</strong> {docsDialogUser?.name}</p>
+              <p><strong>Email:</strong> {docsDialogUser?.email}</p>
+              <p><strong>Categoría:</strong> {docsDialogUser?.categoria_servicio || "No especificada"}</p>
+            </div>
+
+            {/* Documento */}
             {docsDialogUser?.url_documento ? (
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Documento de Soporte</p>
-                    <p className="text-xs text-muted-foreground">Archivo de validación de identidad</p>
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-muted-foreground">Documento cargado:</p>
+                {/* Previsualización si es imagen */}
+                {/\.(jpg|jpeg|png|webp)$/i.test(docsDialogUser.url_documento) ? (
+                  <img
+                    src={`http://127.0.0.1:8000${docsDialogUser.url_documento}`}
+                    alt="Documento"
+                    className="w-full rounded-lg border max-h-72 object-contain bg-muted"
+                  />
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Documento de Soporte</p>
+                        <p className="text-xs text-muted-foreground">PDF u otro archivo</p>
+                      </div>
+                    </div>
+                    <a
+                      href={`http://127.0.0.1:8000${docsDialogUser.url_documento}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
+                    >
+                      Abrir ↗
+                    </a>
                   </div>
-                </div>
-                <a 
-                  href={`http://127.0.0.1:8000${docsDialogUser.url_documento}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
-                >
-                  Abrir documento ↗
-                </a>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
                 <AlertTriangle className="w-5 h-5" />
-                <p className="text-xs font-medium">El proveedor no cargó ningún archivo de soporte en su registro.</p>
+                <p className="text-xs font-medium">El proveedor no cargó ningún documento.</p>
               </div>
             )}
+
+            {/* Nota para rechazo */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Nota de rechazo (opcional — se enviará por correo si rechazas)</Label>
+              <Textarea
+                placeholder="Ej: La cédula no se ve claramente. Por favor cargue un documento más legible."
+                rows={3}
+                value={notaRechazo}
+                onChange={e => setNotaRechazo(e.target.value)}
+              />
+            </div>
           </div>
           <div className="flex gap-2 pt-2">
-            <Button 
-              className="flex-1 bg-success hover:bg-success/90" 
+            <Button
+              className="flex-1 bg-success hover:bg-success/90"
               onClick={() => { if (docsDialogUser) handleVerify(docsDialogUser.id); setDocsDialogUser(null); }}
             >
-              Aprobar proveedor
+              <CheckCircle className="w-4 h-4 mr-1" />Aprobar
             </Button>
-            <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
+            <Button
+              variant="outline"
+              className="flex-1 text-destructive hover:bg-destructive/10"
+              onClick={() => { if (docsDialogUser) handleRejectVerification(docsDialogUser.id, notaRechazo || undefined); }}
+            >
+              <XCircle className="w-4 h-4 mr-1" />Rechazar
+            </Button>
+            <Button variant="ghost" onClick={() => { setDocsDialogUser(null); setNotaRechazo(""); }}>Cancelar</Button>
           </div>
         </DialogContent>
       </Dialog>

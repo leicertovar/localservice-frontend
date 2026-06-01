@@ -20,6 +20,10 @@ export interface SolicitudServicioDatos {
   latitud?: number | null;
   longitud?: number | null;
   estado?: 'pendiente' | 'cotizado' | 'aceptada' | 'rechazada' | 'completada';
+  fecha_completado?: string;
+  marcado_pagado?: boolean;
+  confirmacion_cliente?: 'aceptado' | 'rechazado' | null;
+  queja_cliente?: string | null;
   cliente?: {
     id: string;
     nombre: string;
@@ -107,11 +111,24 @@ export const aceptarCotizacion = async (id: number): Promise<any> => {
 
 /**
  * Rechaza una solicitud o cotización.
- * 
- * @param id Identificador de la solicitud.
- * @returns Promesa con la solicitud actualizada.
  */
 export const rechazarCotizacion = async (id: number): Promise<any> => {
   const { data } = await api.post(`/solicitudes/${id}/rechazar`);
+  return data;
+};
+
+/**
+ * El proveedor marca un servicio como completado y pagado.
+ */
+export const marcarCompletado = async (id: number): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/completar`);
+  return data;
+};
+
+/**
+ * El cliente confirma o rechaza un servicio completado.
+ */
+export const confirmarCompletado = async (id: number, accion: 'aceptar' | 'rechazar', queja?: string): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/confirmar`, { accion, queja });
   return data;
 };
