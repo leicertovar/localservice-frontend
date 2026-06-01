@@ -384,34 +384,34 @@ const ProviderPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b sticky top-0 z-40">
+      <header className="bg-white border-b border-border/60 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-              <span className="text-accent-foreground font-bold text-sm">LS</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">LS</span>
             </div>
             <span className="font-bold text-foreground">LocalService</span>
-            <Badge variant="secondary" className="text-xs">Proveedor</Badge>
+            <Badge className="text-xs bg-accent/10 text-accent border border-accent/20 font-medium">Proveedor</Badge>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
-                <Bell className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-xl hover:bg-muted" onClick={() => setNotificationsOpen(!notificationsOpen)}>
+                <Bell className="w-4.5 h-4.5" />
                 {notifCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
                     {notifCount}
                   </span>
                 )}
               </Button>
               <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
-            <Avatar className="w-8 h-8">
+            <Avatar className="w-8 h-8 ring-2 ring-accent/20">
               {profileData.foto_perfil && <AvatarImage src={profileData.foto_perfil} alt={profileData.name} />}
-              <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+              <AvatarFallback className="bg-accent text-accent-foreground text-xs font-bold">
                 {profileData.name ? profileData.name[0] + (profileData.apellido ? profileData.apellido[0] : "") : "PV"}
               </AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive" asChild>
               <Link to="/"><LogOut className="w-4 h-4" /></Link>
             </Button>
           </div>
@@ -421,39 +421,41 @@ const ProviderPanel = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Solicitudes Nuevas", value: solicitudes.filter(s => s.estado === 'pendiente').length, icon: Clock, color: "text-info" },
-            { label: "Trabajos Confirmados", value: solicitudes.filter(s => s.estado === 'aceptada').length, icon: CheckCircle, color: "text-success" },
-            { label: "Calificación", value: `${(resenas.length ? (resenas.reduce((a, r) => a + r.calificacion, 0) / resenas.length).toFixed(1) : "—")} ★`, icon: Star, color: "text-warning" },
-            { label: "Servicios Publicados", value: misServicios.length, icon: Package, color: "text-primary" },
+            { label: "Solicitudes Nuevas", value: solicitudes.filter(s => s.estado === 'pendiente').length, icon: Clock, color: "text-info", bg: "bg-info/10" },
+            { label: "Trabajos Confirmados", value: solicitudes.filter(s => s.estado === 'aceptada').length, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+            { label: "Calificación", value: `${(resenas.length ? (resenas.reduce((a, r) => a + r.calificacion, 0) / resenas.length).toFixed(1) : "—")} ★`, icon: Star, color: "text-warning", bg: "bg-warning/10" },
+            { label: "Servicios Publicados", value: misServicios.length, icon: Package, color: "text-primary", bg: "bg-primary/10" },
           ].map(stat => (
-            <div key={stat.label} className="bg-card rounded-xl border p-5">
-              <div className="flex items-center justify-between mb-2">
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
+            <div key={stat.label} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                  <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
+                </div>
                 <TrendingUp className="w-4 h-4 text-success" />
               </div>
               <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </div>
           ))}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-muted flex-wrap">
-            <TabsTrigger value="solicitudes" className="gap-2"><Clock className="w-4 h-4" />Solicitudes</TabsTrigger>
-            <TabsTrigger value="cotizaciones" className="gap-2"><FileText className="w-4 h-4" />Cotizaciones</TabsTrigger>
-            <TabsTrigger value="completados" className="gap-2">
-              <CheckCircle className="w-4 h-4" />Completados
+          <TabsList className="bg-white border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1 flex-wrap">
+            <TabsTrigger value="solicitudes" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Clock className="w-3.5 h-3.5" />Solicitudes</TabsTrigger>
+            <TabsTrigger value="cotizaciones" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><FileText className="w-3.5 h-3.5" />Cotizaciones</TabsTrigger>
+            <TabsTrigger value="completados" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <CheckCircle className="w-3.5 h-3.5" />Completados
               {serviciosCompletados.filter(s => !s.confirmacion_cliente).length > 0 && (
-                <Badge className="ml-1 text-[10px] px-1.5 py-0 bg-info text-white">
+                <span className="w-4 h-4 rounded-full bg-info text-info-foreground text-[9px] flex items-center justify-center font-bold">
                   {serviciosCompletados.filter(s => !s.confirmacion_cliente).length}
-                </Badge>
+                </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="servicios" className="gap-2"><Package className="w-4 h-4" />Mis Servicios</TabsTrigger>
-            <TabsTrigger value="resenas" className="gap-2"><Star className="w-4 h-4" />Reseñas</TabsTrigger>
-            <TabsTrigger value="agenda" className="gap-2"><Calendar className="w-4 h-4" />Agenda</TabsTrigger>
-            <TabsTrigger value="mapa" className="gap-2"><MapPin className="w-4 h-4" />Mapa</TabsTrigger>
-            <TabsTrigger value="perfil" className="gap-2"><User className="w-4 h-4" />Mi Perfil</TabsTrigger>
+            <TabsTrigger value="servicios" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Package className="w-3.5 h-3.5" />Mis Servicios</TabsTrigger>
+            <TabsTrigger value="resenas" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Star className="w-3.5 h-3.5" />Reseñas</TabsTrigger>
+            <TabsTrigger value="agenda" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Calendar className="w-3.5 h-3.5" />Agenda</TabsTrigger>
+            <TabsTrigger value="mapa" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><MapPin className="w-3.5 h-3.5" />Mapa</TabsTrigger>
+            <TabsTrigger value="perfil" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><User className="w-3.5 h-3.5" />Mi Perfil</TabsTrigger>
           </TabsList>
 
           {/* Solicitudes */}
