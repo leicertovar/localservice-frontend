@@ -221,31 +221,31 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b sticky top-0 z-40">
+      <header className="bg-white border-b border-border/60 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
-              <span className="text-background font-bold text-sm">LS</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">LS</span>
             </div>
             <span className="font-bold text-foreground">LocalService</span>
-            <Badge className="text-xs bg-destructive/10 text-destructive border-destructive/20">Admin</Badge>
+            <Badge className="text-xs bg-destructive/10 text-destructive border border-destructive/20 font-medium">Admin</Badge>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
-                <Bell className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-xl hover:bg-muted" onClick={() => setNotificationsOpen(!notificationsOpen)}>
+                <Bell className="w-4.5 h-4.5" />
                 {(notifCount > 0 || pendingVerifications.length > 0) && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
                     {notifCount || pendingVerifications.length}
                   </span>
                 )}
               </Button>
               <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-foreground text-background text-xs">AD</AvatarFallback>
+            <Avatar className="w-8 h-8 ring-2 ring-destructive/20">
+              <AvatarFallback className="bg-destructive text-white text-xs font-bold">AD</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive" asChild>
               <Link to="/"><LogOut className="w-4 h-4" /></Link>
             </Button>
           </div>
@@ -257,33 +257,35 @@ const AdminPanel = () => {
         {/* Fila superior de Tarjetas de Estadísticas Reales */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Usuarios", value: stats.total_usuarios.toString(), icon: Users, color: "text-primary" },
-            { label: "Proveedores Verificados", value: stats.proveedores_verificados.toString(), icon: ShieldCheck, color: "text-success" },
-            { label: "Verificación Pendiente", value: stats.verificaciones_pendientes.toString(), icon: AlertTriangle, color: "text-warning" },
-            { label: "Reseñas Reportadas", value: stats.resenas_reportadas.toString(), icon: MessageSquare, color: "text-destructive" },
+            { label: "Total Usuarios", value: stats.total_usuarios.toString(), icon: Users, color: "text-primary", bg: "bg-primary/10" },
+            { label: "Proveedores Verificados", value: stats.proveedores_verificados.toString(), icon: ShieldCheck, color: "text-success", bg: "bg-success/10" },
+            { label: "Verificación Pendiente", value: stats.verificaciones_pendientes.toString(), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
+            { label: "Reseñas Reportadas", value: stats.resenas_reportadas.toString(), icon: MessageSquare, color: "text-destructive", bg: "bg-destructive/10" },
           ].map(stat => (
-            <div key={stat.label} className="bg-card rounded-xl border p-5 hover:shadow-sm transition-shadow">
-              <stat.icon className={`w-5 h-5 ${stat.color} mb-2`} />
+            <div key={stat.label} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
+              <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center mb-3`}>
+                <stat.icon className={`w-4.5 h-4.5 ${stat.color}`} />
+              </div>
               <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </div>
           ))}
         </div>
 
         <Tabs defaultValue="usuarios" className="space-y-6">
-          <TabsList className="bg-muted">
-            <TabsTrigger value="usuarios" className="gap-2"><Users className="w-4 h-4" />Usuarios</TabsTrigger>
-            <TabsTrigger value="verificacion" className="gap-2">
-              <ShieldCheck className="w-4 h-4" />
+          <TabsList className="bg-white border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1">
+            <TabsTrigger value="usuarios" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Users className="w-3.5 h-3.5" />Usuarios</TabsTrigger>
+            <TabsTrigger value="verificacion" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <ShieldCheck className="w-3.5 h-3.5" />
               Verificación
               {pendingVerifications.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-warning text-warning-foreground text-[10px] font-bold">
+                <span className="w-4 h-4 rounded-full bg-warning text-warning-foreground text-[9px] flex items-center justify-center font-bold">
                   {pendingVerifications.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="resenas" className="gap-2"><MessageSquare className="w-4 h-4" />Reseñas</TabsTrigger>
-            <TabsTrigger value="reportes" className="gap-2"><BarChart3 className="w-4 h-4" />Reportes</TabsTrigger>
+            <TabsTrigger value="resenas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><MessageSquare className="w-3.5 h-3.5" />Reseñas</TabsTrigger>
+            <TabsTrigger value="reportes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><BarChart3 className="w-3.5 h-3.5" />Reportes</TabsTrigger>
           </TabsList>
 
           {/* TAB 1: GESTIÓN DE USUARIOS REAL */}
