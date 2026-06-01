@@ -1,5 +1,5 @@
 import { useScrollReveal } from "@/hooks/useScrollReveal";
-import { Wrench, Zap, Leaf, Sparkles, Paintbrush, Hammer } from "lucide-react";
+import { Wrench, Zap, Leaf, Sparkles, Paintbrush, Hammer, MoreHorizontal, Monitor } from "lucide-react";
 
 const categories = [
   { icon: Wrench, name: "Plomería", count: 342, color: "bg-blue-50 text-blue-600" },
@@ -7,7 +7,9 @@ const categories = [
   { icon: Leaf, name: "Jardinería", count: 198, color: "bg-emerald-50 text-emerald-600" },
   { icon: Sparkles, name: "Limpieza", count: 456, color: "bg-sky-50 text-sky-600" },
   { icon: Paintbrush, name: "Pintura", count: 163, color: "bg-rose-50 text-rose-600" },
+  { icon: Monitor, name: "Tecnología", count: 214, color: "bg-violet-50 text-violet-600" },
   { icon: Hammer, name: "Reparaciones", count: 391, color: "bg-orange-50 text-orange-600" },
+  { icon: MoreHorizontal, name: "Otro", count: 120, color: "bg-gray-50 text-gray-600" },
 ];
 
 const CategoriesSection = () => {

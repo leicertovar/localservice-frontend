@@ -1,84 +1,93 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, MapPin, Star, Clock, MessageCircle, History, User, LogOut, Bell, Filter, ChevronRight, FileText, Download, SlidersHorizontal, Shield } from "lucide-react";
+import { Search, Clock, History, User, LogOut, Bell, Star, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import ChatPanel from "@/components/reusable/ChatPanel";
-import { fetchCurrentUser, getUserProfile, UserProfile } from "@/services/authService";
+import { fetchCurrentUser, getUserProfile, actualizarPerfilCliente } from "@/services/authService";
 import { obtenerProveedores } from "@/services/proveedorService";
-import { 
-  obtenerSolicitudesCliente, 
-  aceptarCotizacion as apiAceptarCotizacion, 
+import {
+  obtenerSolicitudesCliente,
+  aceptarCotizacion as apiAceptarCotizacion,
   rechazarCotizacion as apiRechazarCotizacion,
+  confirmarCompletado,
   SolicitudServicioDatos
 } from "@/services/reservaService";
-
-const categorias = ["Todas", "Plomería", "Electricidad", "Limpieza", "Pintura", "Jardinería", "Tecnología"];
+import { crearResena, reportarResena } from "@/services/resenaService";
+import BuscarProveedorSection from "./sections/BuscarProveedorSection";
+import SolicitudesSection from "./sections/SolicitudesSection";
+import HistorialSection from "./sections/HistorialSection";
+import PerfilSection from "./sections/PerfilSection";
 
 const ClientPanel = () => {
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
-  
-  // --- Estados de Datos de API ---
   const [proveedores, setProveedores] = useState<any[]>([]);
   const [solicitudes, setSolicitudes] = useState<SolicitudServicioDatos[]>([]);
   const [cargandoProveedores, setCargandoProveedores] = useState(true);
-
-  // --- Estados de Interfaz ---
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatContact, setChatContact] = useState({ name: "", initials: "", role: "" });
+  const [chatContact, setChatContact] = useState({ name: "", initials: "", role: "", id: "" });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState("");
   const [filterAvailable, setFilterAvailable] = useState(false);
   const [filterMinRating, setFilterMinRating] = useState(0);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState({ service: "", provider: "" });
+  const [reviewTarget, setReviewTarget] = useState<{ service: string; provider: string; proveedorId: string; solicitudId?: number }>({ service: "", provider: "", proveedorId: "" });
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ resenaId: number; providerName: string } | null>(null);
+  const [reportMotivo, setReportMotivo] = useState("");
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<SolicitudServicioDatos | null>(null);
+  const [quejaTexto, setQuejaTexto] = useState("");
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
 
-  const [profileData, setProfileData] = useState<UserProfile>({
-    name: "",
-    email: "",
-    phone: "",
-    city: "",
+  const [profileData, setProfileData] = useState({
+    id: "", name: "", email: "", phone: "", city: "", direccion: "", foto_perfil: "",
   });
-  const [editProfile, setEditProfile] = useState<UserProfile>(profileData);
+  const [editProfile, setEditProfile] = useState(profileData);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  /**
-   * Carga el perfil del usuario autenticado.
-   */
+  const mapearPerfil = (usuario: any) => {
+    const pc = usuario.perfil_cliente || {};
+    const datos = {
+      id: usuario.id || "",
+      name: `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim(),
+      email: usuario.email || "",
+      phone: usuario.telefono || "",
+      city: pc.ciudad || "",
+      direccion: pc.direccion || "",
+      foto_perfil: pc.foto_perfil || "",
+    };
+    setProfileData(datos);
+    setEditProfile(datos);
+  };
+
   const cargarPerfil = async () => {
     const perfilGuardado = getUserProfile();
-    if (perfilGuardado) {
-      setProfileData(perfilGuardado);
-      setEditProfile(perfilGuardado);
-      return;
-    }
-
+    if (perfilGuardado) mapearPerfil(perfilGuardado);
     try {
       const usuarioActual = await fetchCurrentUser();
-      setProfileData(usuarioActual);
-      setEditProfile(usuarioActual);
+      mapearPerfil(usuarioActual);
     } catch (error) {
-      console.error("Error al cargar perfil del usuario:", error);
+      console.error("Error al cargar perfil:", error);
     }
   };
 
-  /**
-   * Carga el listado de proveedores desde el backend.
-   */
   const cargarProveedores = async () => {
     try {
       const datos = await obtenerProveedores();
@@ -90,138 +99,167 @@ const ClientPanel = () => {
     }
   };
 
-  /**
-   * Carga las solicitudes del cliente desde la API.
-   */
   const cargarSolicitudesCliente = async () => {
     try {
       const datos = await obtenerSolicitudesCliente();
       setSolicitudes(datos);
     } catch (error) {
-      console.error("Error al obtener solicitudes del cliente:", error);
+      console.error("Error al obtener solicitudes:", error);
     }
   };
 
-  // Carga inicial al montar el componente
   useEffect(() => {
     cargarPerfil();
     cargarProveedores();
     cargarSolicitudesCliente();
   }, []);
 
-  // Leer parámetros de búsqueda de la URL (si vienen de la Landing Page)
   useEffect(() => {
     const q = searchParams.get("q");
     const cat = searchParams.get("categoria");
     if (q) setSearchTerm(q);
-    if (cat && categorias.includes(cat)) setSelectedCategory(cat);
+    if (cat) setSelectedCategory(cat);
   }, [searchParams]);
 
-  // Filtrado de proveedores en el frontend
-  const proveedoresFiltrados = proveedores.filter(p => {
-    const coincideBusqueda = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const coincideCategoria = selectedCategory === "Todas" || p.category === selectedCategory;
-    const coincideUbicacion = !filterLocation || p.location.toLowerCase().includes(filterLocation.toLowerCase());
-    const coincideDisponibilidad = !filterAvailable || p.available;
-    const coincideCalificacion = p.rating >= filterMinRating;
-    return coincideBusqueda && coincideCategoria && coincideUbicacion && coincideDisponibilidad && coincideCalificacion;
-  });
-
-  /**
-   * Abre la ventana de chat directo con el proveedor.
-   */
-  const abrirChatConProveedor = (nombre: string) => {
-    const iniciales = nombre.split(" ").map(n => n[0]).join("");
-    setChatContact({ name: nombre, initials, role: "Proveedor de servicios" });
+  const abrirChatConProveedor = (nombre: string, id: string) => {
+    const iniciales = nombre.split(" ").map(n => n[0]).join("").toUpperCase();
+    setChatContact({ name: nombre, initials: iniciales, role: "Proveedor de servicios", id });
     setChatOpen(true);
   };
 
-  /**
-   * Envía la confirmación al servidor para aceptar la cotización.
-   */
   const aceptarCotizacionProveedor = async (id: number) => {
     try {
       await apiAceptarCotizacion(id);
-      toast({ 
-        title: "Cotización aceptada", 
-        description: `Has aceptado la cotización y el servicio ha sido agendado. El proveedor ya lo ve en su agenda.` 
-      });
+      toast({ title: "Cotización aceptada", description: "El servicio ha sido agendado." });
       cargarSolicitudesCliente();
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: "No se pudo aceptar la cotización en este momento.", variant: "destructive" });
+    } catch {
+      toast({ title: "Error", description: "No se pudo aceptar la cotización.", variant: "destructive" });
     }
   };
 
-  /**
-   * Envía la denegación al servidor para rechazar la cotización.
-   */
   const rechazarCotizacionProveedor = async (id: number) => {
     try {
       await apiRechazarCotizacion(id);
-      toast({ 
-        title: "Cotización rechazada", 
-        description: `Has rechazado la cotización. El estado se ha actualizado a 'rechazada'.`,
-        variant: "destructive"
-      });
+      toast({ title: "Cotización rechazada", variant: "destructive" });
       cargarSolicitudesCliente();
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: "No se pudo rechazar la cotización en este momento.", variant: "destructive" });
+    } catch {
+      toast({ title: "Error", description: "No se pudo rechazar la cotización.", variant: "destructive" });
     }
   };
 
-  const descargarFacturaServicio = (invoiceId: string) => {
-    toast({ title: "Descargando factura", description: `Factura ${invoiceId} descargándose...` });
-  };
-
-  const guardarCambiosPerfil = () => {
-    setProfileData(editProfile);
-    setEditProfileOpen(false);
-    toast({ title: "Perfil actualizado", description: "Tus datos han sido guardados correctamente." });
-  };
-
-  const publicarResenaCliente = () => {
+  const publicarResenaCliente = async () => {
     if (!reviewComment.trim()) return;
-    setReviewDialogOpen(false);
-    setReviewComment("");
-    setReviewRating(5);
-    toast({ title: "Reseña publicada", description: `Tu calificación de ${reviewRating} estrellas para "${reviewTarget.service}" ha sido publicada.` });
+    try {
+      await crearResena({ proveedor_id: reviewTarget.proveedorId, solicitud_id: reviewTarget.solicitudId, calificacion: reviewRating, comentario: reviewComment });
+      setReviewDialogOpen(false);
+      setReviewComment("");
+      setReviewRating(5);
+      toast({ title: "Reseña publicada", description: `Tu calificación de ${reviewRating} estrellas ha sido publicada.` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.response?.data?.mensaje || "No se pudo publicar la reseña.", variant: "destructive" });
+    }
   };
 
-  // Historial de servicios estáticos (Mock)
-  const mockHistory = [
-    { id: 2, service: "Reparación eléctrica", provider: "Jorge Ramírez", date: "2026-03-15", total: "$180.000", rating: 4, invoiceId: "INV-2026-0038" },
-  ];
+  const handleReportarResena = async () => {
+    if (!reportTarget || !reportMotivo.trim()) return;
+    try {
+      await reportarResena(reportTarget.resenaId, reportMotivo);
+      setReportDialogOpen(false);
+      setReportMotivo("");
+      toast({ title: "Reseña reportada", description: "El administrador revisará la reseña." });
+    } catch {
+      toast({ title: "Error", description: "No se pudo reportar la reseña.", variant: "destructive" });
+    }
+  };
+
+  const confirmarServicio = async (accion: 'aceptar' | 'rechazar') => {
+    if (!confirmTarget?.id) return;
+    try {
+      await confirmarCompletado(confirmTarget.id, accion, accion === 'rechazar' ? quejaTexto : undefined);
+      setConfirmDialogOpen(false);
+      setQuejaTexto("");
+      toast({
+        title: accion === 'aceptar' ? "Servicio confirmado" : "Queja enviada",
+        description: accion === 'aceptar' ? "¡Gracias por confirmar! Ya puedes dejar tu reseña." : "Tu queja ha sido enviada al administrador.",
+      });
+      cargarSolicitudesCliente();
+    } catch {
+      toast({ title: "Error", description: "No se pudo procesar la confirmación.", variant: "destructive" });
+    }
+  };
+
+  const guardarCambiosPerfil = async () => {
+    setGuardandoPerfil(true);
+    try {
+      const formData = new FormData();
+      formData.append('nombre', editProfile.name.split(" ")[0] || editProfile.name);
+      formData.append('apellido', editProfile.name.split(" ").slice(1).join(" ") || "");
+      formData.append('email', editProfile.email);
+      formData.append('telefono', editProfile.phone);
+      formData.append('ciudad', editProfile.city);
+      formData.append('direccion', editProfile.direccion);
+      if (fotoFile) formData.append('foto_perfil', fotoFile);
+      const res = await actualizarPerfilCliente(formData);
+      if (res.usuario) {
+        localStorage.setItem('user_profile', JSON.stringify(res.usuario));
+        mapearPerfil(res.usuario);
+      }
+      setEditProfileOpen(false);
+      setFotoFile(null);
+      toast({ title: "Perfil actualizado", description: "Tus datos han sido guardados correctamente." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.response?.data?.mensaje || "No se pudo actualizar el perfil.", variant: "destructive" });
+    } finally {
+      setGuardandoPerfil(false);
+    }
+  };
+
+  const serviciosCompletadosPendientes = solicitudes.filter(s => s.estado === 'completada' && !s.confirmacion_cliente);
+  const historial = solicitudes.filter(s => s.estado === 'completada' && s.confirmacion_cliente === 'aceptado');
+  const nombreCorto = profileData.name ? profileData.name.split(" ")[0] : "Cliente";
+  const cotizacionesPendientes = solicitudes.filter(s => s.estado === 'cotizado').length;
+
+  const inputClass = "h-10 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50";
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-40">
+      <header className="bg-white border-b border-border/60 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">LS</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">LS</span>
             </div>
             <span className="font-bold text-foreground">LocalService</span>
-            <Badge variant="secondary" className="text-xs">Cliente</Badge>
+            <Badge className="text-xs bg-primary/10 text-primary border border-primary/20 font-medium">Cliente</Badge>
           </Link>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-                  {solicitudes.filter(s => s.estado === 'cotizado').length}
-                </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-9 w-9 rounded-xl hover:bg-muted"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+              >
+                <Bell className="w-4.5 h-4.5" />
+                {notifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
+                    {notifCount}
+                  </span>
+                )}
               </Button>
-              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+
+            <Avatar className="w-8 h-8 ring-2 ring-primary/20">
+              {profileData.foto_perfil ? <AvatarImage src={profileData.foto_perfil} alt={profileData.name} /> : null}
+              <AvatarFallback className="bg-primary text-white text-xs font-bold">
                 {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
               </AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon" asChild>
+
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive" asChild>
               <Link to="/"><LogOut className="w-4 h-4" /></Link>
             </Button>
           </div>
@@ -229,342 +267,273 @@ const ClientPanel = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Bienvenida */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">¡Hola, {profileData.name ? profileData.name.split(" ")[0] : "Cliente"}! 👋</h1>
-          <p className="text-muted-foreground">¿Qué servicio necesitas hoy?</p>
+          <h1 className="text-2xl font-bold text-foreground">¡Hola, {nombreCorto}! 👋</h1>
+          <p className="text-muted-foreground mt-0.5">¿Qué servicio necesitas hoy?</p>
         </div>
 
         <Tabs defaultValue="buscar" className="space-y-6">
-          <TabsList className="bg-muted flex-wrap">
-            <TabsTrigger value="buscar" className="gap-2"><Search className="w-4 h-4" />Buscar Proveedor</TabsTrigger>
-            <TabsTrigger value="solicitudes" className="gap-2"><Clock className="w-4 h-4" />Mis Solicitudes</TabsTrigger>
-            <TabsTrigger value="historial" className="gap-2"><History className="w-4 h-4" />Historial</TabsTrigger>
-            <TabsTrigger value="perfil" className="gap-2"><User className="w-4 h-4" />Mi Perfil</TabsTrigger>
+          <TabsList className="bg-white border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1 flex-wrap">
+            <TabsTrigger value="buscar" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <Search className="w-3.5 h-3.5" />
+              Buscar
+            </TabsTrigger>
+            <TabsTrigger value="solicitudes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <Clock className="w-3.5 h-3.5" />
+              Solicitudes
+              {cotizacionesPendientes > 0 && (
+                <span className="w-4 h-4 rounded-full bg-warning text-warning-foreground text-[9px] flex items-center justify-center font-bold">
+                  {cotizacionesPendientes}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="historial" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <History className="w-3.5 h-3.5" />
+              Historial
+              {serviciosCompletadosPendientes.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-info text-info-foreground text-[9px] flex items-center justify-center font-bold">
+                  {serviciosCompletadosPendientes.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="perfil" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <User className="w-3.5 h-3.5" />
+              Perfil
+            </TabsTrigger>
           </TabsList>
 
-          {/* Tab de Búsqueda */}
-          <TabsContent value="buscar" className="space-y-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Buscar servicio o proveedor..." className="pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                </div>
-                <Button variant="outline" className="gap-2" onClick={() => setFiltersOpen(!filtersOpen)}>
-                  <SlidersHorizontal className="w-4 h-4" />Filtros
-                  {(filterLocation || filterAvailable || filterMinRating > 0) && (
-                    <span className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </Button>
-              </div>
-
-              {/* Panel de Filtros */}
-              {filtersOpen && (
-                <div className="bg-card border rounded-xl p-5 space-y-4 animate-in slide-in-from-top-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                      <Filter className="w-4 h-4" />Filtros avanzados
-                    </h3>
-                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { setFilterLocation(""); setFilterAvailable(false); setFilterMinRating(0); }}>
-                      Limpiar filtros
-                    </Button>
-                  </div>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Ubicación</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                        <Input placeholder="Ej: Buenaventura" className="pl-8 h-9 text-sm" value={filterLocation} onChange={e => setFilterLocation(e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Calificación mínima</Label>
-                      <div className="flex gap-1">
-                        {[1,2,3,4,5].map(s => (
-                          <button key={s} onClick={() => setFilterMinRating(filterMinRating === s ? 0 : s)} className="p-1">
-                            <Star className={`w-5 h-5 ${s <= filterMinRating ? "text-warning fill-warning" : "text-muted"}`} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Disponibilidad</Label>
-                      <Button variant={filterAvailable ? "default" : "outline"} size="sm" className="w-full text-xs" onClick={() => setFilterAvailable(!filterAvailable)}>
-                        {filterAvailable ? "✓ Solo disponibles" : "Todos"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 flex-wrap">
-                {categorias.map(cat => (
-                  <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(cat)} className="text-xs">
-                    {cat}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Listado de Proveedores de la API */}
-            {cargandoProveedores ? (
-              <p className="text-muted-foreground text-sm text-center py-12">Obteniendo proveedores de servicios en la zona...</p>
-            ) : proveedoresFiltrados.length === 0 ? (
-              <div className="text-center py-12 border rounded-xl bg-card">
-                <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-medium">No se encontraron proveedores</p>
-                <p className="text-sm text-muted-foreground">Intenta con otros filtros o categorías</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {proveedoresFiltrados.map(provider => (
-                  <div key={provider.id} className="bg-card rounded-xl border p-5 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3 mb-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {provider.name ? provider.name.split(" ").map((n: string) => n[0]).join("") : "PV"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <Link to={`/proveedor/${provider.id}`} className="font-semibold text-foreground hover:text-primary transition-colors">{provider.name}</Link>
-                        <p className="text-sm text-muted-foreground">{provider.category}</p>
-                      </div>
-                      <Badge variant={provider.available ? "default" : "secondary"} className="text-xs">{provider.available ? "Disponible" : "Ocupado"}</Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <span className="flex items-center gap-1"><Star className="w-4 h-4 text-warning fill-warning" />{provider.rating} ({provider.reviews})</span>
-                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{provider.location}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">{provider.price}</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => abrirChatConProveedor(provider.name)}><MessageCircle className="w-4 h-4" /></Button>
-                        <Button size="sm" asChild><Link to={`/proveedor/${provider.id}`}>Ver perfil<ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <TabsContent value="buscar">
+            <BuscarProveedorSection
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              proveedores={proveedores}
+              cargandoProveedores={cargandoProveedores}
+              filtersOpen={filtersOpen}
+              setFiltersOpen={setFiltersOpen}
+              filterLocation={filterLocation}
+              setFilterLocation={setFilterLocation}
+              filterAvailable={filterAvailable}
+              setFilterAvailable={setFilterAvailable}
+              filterMinRating={filterMinRating}
+              setFilterMinRating={setFilterMinRating}
+              onAbrirChat={abrirChatConProveedor}
+            />
           </TabsContent>
 
-          {/* Tab de Solicitudes */}
-          <TabsContent value="solicitudes" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Mis Solicitudes y Cotizaciones</h2>
-            {solicitudes.length === 0 ? (
-              <div className="bg-card border rounded-xl p-8 text-center text-muted-foreground text-sm">
-                Aún no has enviado solicitudes de cotización. Visita los perfiles de los proveedores para solicitar una.
-              </div>
-            ) : solicitudes.map(req => {
-              // Estilo del badge por estado
-              let estadoBadge = "bg-muted text-muted-foreground";
-              let estadoTexto = req.estado;
-              if (req.estado === 'pendiente') {
-                estadoBadge = "bg-info/10 text-info";
-                estadoTexto = "Pendiente de Cotizar";
-              } else if (req.estado === 'cotizado') {
-                estadoBadge = "bg-warning/10 text-warning";
-                estadoTexto = "Cotización Recibida";
-              } else if (req.estado === 'aceptada') {
-                estadoBadge = "bg-success/10 text-success";
-                estadoTexto = "Confirmado / Agendado";
-              } else if (req.estado === 'rechazada') {
-                estadoBadge = "bg-destructive/10 text-destructive";
-                estadoTexto = "Rechazada";
-              } else if (req.estado === 'completada') {
-                estadoBadge = "bg-success text-success-foreground";
-                estadoTexto = "Trabajo Completado";
-              }
-
-              const proveedorNombre = req.proveedor ? `${req.proveedor.nombre} ${req.proveedor.apellido || ""}`.trim() : "Proveedor";
-
-              return (
-                <div key={req.id} className="bg-card rounded-xl border p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-foreground">{req.servicio?.nombre || "Servicio Personalizado"}</h3>
-                        <Badge className={`${estadoBadge} text-xs`}>{estadoTexto}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Proveedor: {proveedorNombre}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Fecha programada: {req.fecha} · Hora: {req.hora}</p>
-                      
-                      {req.estado === 'cotizado' && req.monto_cotizado && (
-                        <div className="mt-3 p-3 bg-muted/60 border rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs text-muted-foreground">Monto Cotizado</p>
-                              <p className="text-lg font-bold text-primary">{req.monto_cotizado}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Tiempo de Ejecución</p>
-                              <p className="text-sm font-semibold text-foreground">{req.tiempo_estimado}</p>
-                            </div>
-                          </div>
-                          {req.garantia && (
-                            <p className="text-xs text-muted-foreground"><strong className="text-foreground">Garantía:</strong> {req.garantia}</p>
-                          )}
-                          {req.detalles_cotizacion && (
-                            <p className="text-xs text-muted-foreground mt-1"><strong className="text-foreground">Detalles del Proveedor:</strong> {req.detalles_cotizacion}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {req.estado === 'aceptada' && req.monto_cotizado && (
-                        <div className="mt-3 p-3 bg-success/5 border border-success/20 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Monto acordado: <strong className="text-foreground">{req.monto_cotizado}</strong></p>
-                          <p className="text-xs text-muted-foreground">Tiempo de trabajo: <strong className="text-foreground">{req.tiempo_estimado}</strong></p>
-                          {req.garantia && <p className="text-xs text-muted-foreground">Garantía del trabajo: <strong className="text-foreground">{req.garantia}</strong></p>}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {req.estado === 'cotizado' && req.id && (
-                        <>
-                          <Button size="sm" onClick={() => req.id && aceptarCotizacionProveedor(req.id)}>Aceptar cotización</Button>
-                          <Button size="sm" variant="outline" className="text-destructive" onClick={() => req.id && rechazarCotizacionProveedor(req.id)}>Rechazar</Button>
-                        </>
-                      )}
-                      <Button size="sm" variant="ghost" onClick={() => abrirChatConProveedor(proveedorNombre)}>
-                        <MessageCircle className="w-4 h-4 mr-1" />Chat
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <TabsContent value="solicitudes">
+            <SolicitudesSection
+              solicitudes={solicitudes}
+              onAceptarCotizacion={aceptarCotizacionProveedor}
+              onRechazarCotizacion={rechazarCotizacionProveedor}
+              onAbrirChat={abrirChatConProveedor}
+            />
           </TabsContent>
 
-          {/* Tab de Historial */}
-          <TabsContent value="historial" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Historial de Servicios</h2>
-            {mockHistory.map(item => (
-              <div key={item.id} className="bg-card rounded-xl border p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{item.service}</h3>
-                    <p className="text-sm text-muted-foreground">Proveedor: {item.provider} · {item.date}</p>
-                  </div>
-                  <Badge className="bg-success/10 text-success">Completado</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex gap-0.5">
-                      {[1,2,3,4,5].map(s => (
-                        <Star key={s} className={`w-4 h-4 ${s <= item.rating ? "text-warning fill-warning" : "text-muted"}`} />
-                      ))}
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{item.total}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
-                      setReviewTarget({ service: item.service, provider: item.provider });
-                      setReviewDialogOpen(true);
-                    }}>
-                      <Star className="w-3 h-3" />Dejar reseña
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => descargarFacturaServicio(item.invoiceId)}>
-                      <Download className="w-3 h-3" />Factura
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-                  <FileText className="w-3 h-3" />{item.invoiceId}
-                </div>
-              </div>
-            ))}
+          <TabsContent value="historial">
+            <HistorialSection
+              historial={historial}
+              serviciosCompletadosPendientes={serviciosCompletadosPendientes}
+              onOpenReview={target => { setReviewTarget(target); setReviewDialogOpen(true); }}
+              onOpenConfirm={target => { setConfirmTarget(target); setConfirmDialogOpen(true); }}
+            />
           </TabsContent>
 
-          {/* Tab de Perfil */}
-          <TabsContent value="perfil" className="max-w-lg space-y-6">
-            <h2 className="text-lg font-semibold text-foreground">Mi Perfil</h2>
-            <div className="bg-card rounded-xl border p-6 space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                    {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-bold text-foreground text-lg">{profileData.name}</h3>
-                  <p className="text-sm text-muted-foreground">{profileData.email}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="text-xs text-muted-foreground">Teléfono</label><p className="text-sm font-medium text-foreground">{profileData.phone || "No especificado"}</p></div>
-                <div><label className="text-xs text-muted-foreground">Ciudad</label><p className="text-sm font-medium text-foreground">{profileData.city || "No especificada"}</p></div>
-                <div><label className="text-xs text-muted-foreground">Servicios solicitados</label><p className="text-sm font-medium text-foreground">{solicitudes.length}</p></div>
-                <div><label className="text-xs text-muted-foreground">Miembro desde</label><p className="text-sm font-medium text-foreground">Marzo 2026</p></div>
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => { setEditProfile(profileData); setEditProfileOpen(true); }}>Editar Perfil</Button>
-            </div>
+          <TabsContent value="perfil">
+            <PerfilSection
+              profileData={profileData}
+              totalSolicitudes={solicitudes.length}
+              onOpenEditProfile={() => { setEditProfile(profileData); setFotoFile(null); setEditProfileOpen(true); }}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Edit Profile Dialog */}
+      {/* Dialog: Editar Perfil */}
       <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Editar Perfil</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Editar Perfil</DialogTitle>
             <DialogDescription>Actualiza tu información personal</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nombre completo</Label>
-              <Input value={editProfile.name} onChange={e => setEditProfile({ ...editProfile, name: e.target.value })} />
+            <div className="flex items-center gap-4">
+              <Avatar className="w-16 h-16 ring-2 ring-primary/20">
+                {(fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil) && (
+                  <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil} />
+                )}
+                <AvatarFallback className="bg-primary text-white text-xl font-bold">
+                  {editProfile.name ? editProfile.name.split(" ").map(n => n[0]).join("") : "CL"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground font-medium block mb-1.5">Foto de perfil</Label>
+                <Input type="file" accept="image/*" className="text-xs h-9 rounded-lg" onChange={e => setFotoFile(e.target.files?.[0] || null)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={editProfile.email} onChange={e => setEditProfile({ ...editProfile, email: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Nombre completo</Label>
+              <Input className={inputClass} value={editProfile.name} onChange={e => setEditProfile({ ...editProfile, name: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input value={editProfile.phone} onChange={e => setEditProfile({ ...editProfile, phone: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Email</Label>
+              <Input type="email" className={inputClass} value={editProfile.email} onChange={e => setEditProfile({ ...editProfile, email: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Ciudad</Label>
-              <Input value={editProfile.city} onChange={e => setEditProfile({ ...editProfile, city: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Teléfono</Label>
+              <Input className={inputClass} value={editProfile.phone} onChange={e => setEditProfile({ ...editProfile, phone: e.target.value })} />
             </div>
-            <div className="flex gap-2 pt-2">
-              <Button onClick={guardarCambiosPerfil} className="flex-1">Guardar cambios</Button>
-              <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Ciudad</Label>
+                <Input className={inputClass} value={editProfile.city} onChange={e => setEditProfile({ ...editProfile, city: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Dirección</Label>
+                <Input className={inputClass} value={editProfile.direccion} onChange={e => setEditProfile({ ...editProfile, direccion: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button onClick={guardarCambiosPerfil} className="flex-1 h-10 rounded-xl font-semibold" disabled={guardandoPerfil}>
+                {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
+              </Button>
+              <Button variant="outline" className="h-10 rounded-xl border-border/60" onClick={() => setEditProfileOpen(false)}>
+                Cancelar
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Leave Review Dialog */}
+      {/* Dialog: Dejar Reseña */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Dejar Reseña</DialogTitle>
-            <DialogDescription>Califica el servicio "{reviewTarget.service}" de {reviewTarget.provider}</DialogDescription>
+            <DialogTitle className="text-lg font-bold">Dejar Reseña</DialogTitle>
+            <DialogDescription>Califica el servicio de {reviewTarget.provider}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Tu calificación</Label>
+              <Label className="text-sm font-medium">Tu calificación</Label>
               <div className="flex gap-1">
-                {[1,2,3,4,5].map(s => (
+                {[1, 2, 3, 4, 5].map(s => (
                   <button key={s} onClick={() => setReviewRating(s)} className="p-1 hover:scale-110 transition-transform">
-                    <Star className={`w-7 h-7 ${s <= reviewRating ? "text-warning fill-warning" : "text-muted hover:text-warning/50"}`} />
+                    <Star className={`w-8 h-8 ${s <= reviewRating ? "text-warning fill-warning" : "text-muted-foreground/20"}`} />
                   </button>
                 ))}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Tu comentario</Label>
-              <Textarea placeholder="Describe tu experiencia con este servicio..." rows={4} value={reviewComment} onChange={e => setReviewComment(e.target.value)} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Tu comentario</Label>
+              <Textarea
+                placeholder="Describe tu experiencia con este servicio..."
+                rows={4}
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                className="rounded-xl border-border/70 resize-none"
+              />
             </div>
-            <div className="flex gap-2 pt-2">
-              <Button onClick={publicarResenaCliente} className="flex-1" disabled={!reviewComment.trim()}>Publicar reseña</Button>
-              <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancelar</Button>
+            <div className="flex gap-2 pt-1">
+              <Button onClick={publicarResenaCliente} className="flex-1 h-10 rounded-xl font-semibold" disabled={!reviewComment.trim()}>
+                Publicar reseña
+              </Button>
+              <Button variant="outline" className="h-10 rounded-xl border-border/60" onClick={() => setReviewDialogOpen(false)}>
+                Cancelar
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <ChatPanel contactName={chatContact.name} contactInitials={chatContact.initials} contactRole={chatContact.role} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      {/* Dialog: Reportar Reseña */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Reportar Reseña</DialogTitle>
+            <DialogDescription>¿Por qué quieres reportar esta reseña?</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Motivo del reporte</Label>
+              <Textarea
+                placeholder="Describe el problema con esta reseña..."
+                rows={3}
+                value={reportMotivo}
+                onChange={e => setReportMotivo(e.target.value)}
+                className="rounded-xl border-border/70 resize-none"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                onClick={handleReportarResena}
+                className="flex-1 h-10 rounded-xl font-semibold gap-2"
+                disabled={!reportMotivo.trim()}
+                variant="destructive"
+              >
+                <AlertTriangle className="w-4 h-4" />Reportar
+              </Button>
+              <Button variant="outline" className="h-10 rounded-xl border-border/60" onClick={() => setReportDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Confirmar Servicio Completado */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Confirmar Servicio</DialogTitle>
+            <DialogDescription>
+              ¿Quedaste satisfecho con "{confirmTarget?.servicio?.nombre || "Servicio Personalizado"}"?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted/40 border border-border/60 rounded-xl text-sm space-y-1">
+              <p><span className="font-semibold">Proveedor:</span> {confirmTarget?.proveedor ? `${confirmTarget.proveedor.nombre} ${confirmTarget.proveedor.apellido || ""}` : "Proveedor"}</p>
+              <p><span className="font-semibold">Monto:</span> {confirmTarget?.monto_cotizado}</p>
+              <p><span className="font-semibold">Fecha:</span> {confirmTarget?.fecha}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">¿Tienes alguna queja? (solo si rechazas)</Label>
+              <Textarea
+                placeholder="Describe el problema si el servicio no fue satisfactorio..."
+                rows={3}
+                value={quejaTexto}
+                onChange={e => setQuejaTexto(e.target.value)}
+                className="rounded-xl border-border/70 resize-none"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                onClick={() => confirmarServicio('aceptar')}
+                className="flex-1 h-10 rounded-xl font-semibold bg-success hover:bg-success/90 text-success-foreground"
+              >
+                ✓ Aceptar servicio
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 rounded-xl font-semibold text-destructive border-destructive/30 hover:bg-destructive/5"
+                onClick={() => confirmarServicio('rechazar')}
+              >
+                Rechazar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ChatPanel
+        contactName={chatContact.name}
+        contactInitials={chatContact.initials}
+        contactRole={chatContact.role}
+        contactId={chatContact.id}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </div>
   );
 };
