@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Package, Clock, CheckCircle, Star, Calendar, User, LogOut, Bell, TrendingUp, MapPin, AlertTriangle } from "lucide-react";
+import { Package, Clock, CheckCircle, FileText, Star, Calendar, User, LogOut, Bell, TrendingUp, MapPin, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -282,7 +282,7 @@ const ProviderPanel = () => {
               <Clock className="w-3.5 h-3.5" />Solicitudes
             </TabsTrigger>
             <TabsTrigger value="cotizaciones" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
-              <CheckCircle className="w-3.5 h-3.5" />Cotizaciones
+              <FileText className="w-3.5 h-3.5" />Cotizaciones
             </TabsTrigger>
             <TabsTrigger value="completados" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
               <CheckCircle className="w-3.5 h-3.5" />Completados
