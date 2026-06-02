@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Package, Clock, CheckCircle, XCircle, Star, Calendar, User, LogOut, Bell, Plus, TrendingUp, MessageCircle, Send, FileText, Trash2, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, Clock, CheckCircle, XCircle, Star, Calendar, User, LogOut, Bell, Plus, TrendingUp, MessageCircle, Send, FileText, Trash2, MapPin, ChevronLeft, ChevronRight, AlertTriangle, Upload } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import ChatPanel from "@/components/reusable/ChatPanel";
 import { fetchCurrentUser, getUserProfile } from "@/services/authService";
+import { storageUrl } from "@/lib/api";
 import {
   actualizarPerfilProveedor,
   obtenerServicios,
@@ -29,6 +30,7 @@ import {
   enviarCotizacion,
   rechazarCotizacion,
   marcarCompletado,
+  aportarEvidenciaProveedor,
   SolicitudServicioDatos
 } from "@/services/reservaService";
 import { obtenerResenas, responderResena as apiResponderResena, type Resena } from "@/services/resenaService";
@@ -65,6 +67,11 @@ const ProviderPanel = () => {
   const [tiempoEstimado, setTiempoEstimado] = useState("");
   const [garantiaCotizada, setGarantiaCotizada] = useState("");
   const [detallesCotizacion, setDetallesCotizacion] = useState("");
+
+  const [disputaDialogId, setDisputaDialogId] = useState<number | null>(null);
+  const [disputaDescripcion, setDisputaDescripcion] = useState("");
+  const [disputaEvidencia, setDisputaEvidencia] = useState<File | null>(null);
+  const [enviandoEvidencia, setEnviandoEvidencia] = useState(false);
 
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -318,7 +325,29 @@ const ProviderPanel = () => {
       await marcarCompletado(id);
       toast({ title: "Servicio completado", description: "El cliente recibirá una notificación para confirmar." });
       cargarSolicitudes();
-    } catch { toast({ title: "Error", variant: "destructive" }); }
+    } catch (err: any) {
+      toast({ title: "No se puede completar", description: err.response?.data?.mensaje || "Error al marcar el servicio.", variant: "destructive" });
+    }
+  };
+
+  const enviarEvidenciaDisputa = async () => {
+    if (!disputaDialogId || !disputaDescripcion.trim() || !disputaEvidencia) {
+      toast({ title: "Campos incompletos", description: "Debes escribir una descripción y adjuntar un archivo de evidencia.", variant: "destructive" });
+      return;
+    }
+    setEnviandoEvidencia(true);
+    try {
+      await aportarEvidenciaProveedor(disputaDialogId, disputaDescripcion, disputaEvidencia);
+      toast({ title: "Evidencia enviada", description: "El administrador revisará la disputa y tomará la decisión final." });
+      setDisputaDialogId(null);
+      setDisputaDescripcion("");
+      setDisputaEvidencia(null);
+      cargarSolicitudes();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo enviar la evidencia.", variant: "destructive" });
+    } finally {
+      setEnviandoEvidencia(false);
+    }
   };
 
   // --- Perfil ---
@@ -341,7 +370,7 @@ const ProviderPanel = () => {
       if (fotoFile) formData.append('foto_perfil', fotoFile);
 
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/proveedor/perfil`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
         body: formData,
       });
@@ -381,6 +410,7 @@ const ProviderPanel = () => {
   };
 
   const serviciosCompletados = solicitudes.filter(s => s.estado === 'completada');
+  const disputasActivas = solicitudes.filter(s => s.estado_disputa === 'pendiente_proveedor');
 
   return (
     <div className="min-h-screen bg-background">
@@ -406,7 +436,7 @@ const ProviderPanel = () => {
               <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
             <Avatar className="w-8 h-8 ring-2 ring-accent/20">
-              {profileData.foto_perfil && <AvatarImage src={profileData.foto_perfil} alt={profileData.name} />}
+              {profileData.foto_perfil && <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} />}
               <AvatarFallback className="bg-accent text-accent-foreground text-xs font-bold">
                 {profileData.name ? profileData.name[0] + (profileData.apellido ? profileData.apellido[0] : "") : "PV"}
               </AvatarFallback>
@@ -455,6 +485,12 @@ const ProviderPanel = () => {
             <TabsTrigger value="resenas" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Star className="w-3.5 h-3.5" />Reseñas</TabsTrigger>
             <TabsTrigger value="agenda" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Calendar className="w-3.5 h-3.5" />Agenda</TabsTrigger>
             <TabsTrigger value="mapa" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><MapPin className="w-3.5 h-3.5" />Mapa</TabsTrigger>
+            {disputasActivas.length > 0 && (
+              <TabsTrigger value="disputas" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+                <AlertTriangle className="w-3.5 h-3.5" />Disputas
+                <span className="w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">{disputasActivas.length}</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="perfil" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><User className="w-3.5 h-3.5" />Mi Perfil</TabsTrigger>
           </TabsList>
 
@@ -535,9 +571,20 @@ const ProviderPanel = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-lg font-bold text-foreground">{q.monto_cotizado}</span>
-                      <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => q.id && completarServicio(q.id)}>
-                        <CheckCircle className="w-4 h-4 mr-1" />Completar
-                      </Button>
+                      {(() => {
+                        const hoy = new Date().toISOString().split('T')[0];
+                        const puedCompletar = !q.fecha || hoy >= q.fecha;
+                        return puedCompletar ? (
+                          <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => q.id && completarServicio(q.id)}>
+                            <CheckCircle className="w-4 h-4 mr-1" />Completar
+                          </Button>
+                        ) : (
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Disponible el</p>
+                            <p className="text-xs font-semibold text-foreground">{new Date(q.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -753,7 +800,15 @@ const ProviderPanel = () => {
                       <p className="text-xs text-muted-foreground">{sol.direccion}</p>
                       <div className="flex gap-1 justify-end">
                         <Button size="xs" variant="outline" className="h-7 text-xs" onClick={() => sol.cliente && abrirChatConCliente(`${sol.cliente.nombre} ${sol.cliente.apellido || ""}`, sol.cliente.id)}>Chat</Button>
-                        <Button size="xs" variant="default" className="h-7 text-xs bg-success hover:bg-success/90" onClick={() => sol.id && completarServicio(sol.id)}>Completar</Button>
+                        {(() => {
+                          const hoy = new Date().toISOString().split('T')[0];
+                          const puedCompletar = !sol.fecha || hoy >= sol.fecha;
+                          return puedCompletar ? (
+                            <Button size="xs" variant="default" className="h-7 text-xs bg-success hover:bg-success/90" onClick={() => sol.id && completarServicio(sol.id)}>Completar</Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">Desde {new Date(sol.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</span>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -774,12 +829,49 @@ const ProviderPanel = () => {
           </TabsContent>
 
           {/* Perfil */}
+          {/* DISPUTAS */}
+          <TabsContent value="disputas" className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <h2 className="text-lg font-semibold text-foreground">Disputas Activas</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">Un cliente rechazó estos servicios. Debes aportar tu evidencia para que el administrador tome la decisión final.</p>
+            {disputasActivas.length === 0 ? (
+              <div className="bg-card border rounded-xl p-8 text-center text-muted-foreground text-sm">No tienes disputas activas.</div>
+            ) : disputasActivas.map(s => (
+              <div key={s.id} className="bg-card rounded-xl border border-destructive/20 p-5 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">{s.servicio?.nombre || "Servicio Personalizado"}</p>
+                    <p className="text-xs text-muted-foreground">Cliente: {s.cliente ? `${s.cliente.nombre} ${s.cliente.apellido || ''}` : '—'} · Fecha: {s.fecha}</p>
+                  </div>
+                  <span className="text-xs bg-destructive/10 text-destructive font-medium px-2 py-0.5 rounded-full">En disputa</span>
+                </div>
+                {s.queja_cliente && (
+                  <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
+                    <p className="text-xs font-semibold text-destructive mb-1">Motivo del cliente:</p>
+                    <p className="text-sm text-foreground">{s.queja_cliente}</p>
+                  </div>
+                )}
+                {s.evidencia_cliente && (
+                  <a href={storageUrl(s.evidencia_cliente)} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-primary underline">
+                    <FileText className="w-3.5 h-3.5" />Ver evidencia del cliente
+                  </a>
+                )}
+                <Button size="sm" className="gap-2 bg-primary" onClick={() => setDisputaDialogId(s.id)}>
+                  <Upload className="w-4 h-4" />Aportar mi evidencia
+                </Button>
+              </div>
+            ))}
+          </TabsContent>
+
           <TabsContent value="perfil" className="max-w-lg space-y-6">
             <h2 className="text-lg font-semibold text-foreground">Mi Perfil de Proveedor</h2>
             <div className="bg-card rounded-xl border p-6 space-y-4">
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
-                  {profileData.foto_perfil && <AvatarImage src={profileData.foto_perfil} alt={profileData.name} />}
+                  {profileData.foto_perfil && <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} />}
                   <AvatarFallback className="bg-accent text-accent-foreground text-xl">
                     {profileData.name ? profileData.name[0] + (profileData.apellido ? profileData.apellido[0] : "") : "PV"}
                   </AvatarFallback>
@@ -841,6 +933,49 @@ const ProviderPanel = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Aportar Evidencia en Disputa */}
+      <Dialog open={disputaDialogId !== null} onOpenChange={open => { if (!open) { setDisputaDialogId(null); setDisputaDescripcion(""); setDisputaEvidencia(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-destructive" />Aportar Evidencia</DialogTitle>
+            <DialogDescription>Describe qué hiciste y adjunta tu evidencia (foto o PDF). El administrador tomará la decisión final.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Tu descripción del trabajo realizado</Label>
+              <Textarea
+                placeholder="Explica en detalle qué trabajo realizaste, cuándo y cómo..."
+                rows={4}
+                value={disputaDescripcion}
+                onChange={e => setDisputaDescripcion(e.target.value)}
+                className="resize-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Evidencia (foto o PDF — obligatorio)</Label>
+              <Input
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={e => setDisputaEvidencia(e.target.files?.[0] || null)}
+              />
+              {disputaEvidencia && <p className="text-[11px] text-success">✓ {disputaEvidencia.name}</p>}
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button
+              className="flex-1"
+              onClick={enviarEvidenciaDisputa}
+              disabled={enviandoEvidencia || !disputaDescripcion.trim() || !disputaEvidencia}
+            >
+              {enviandoEvidencia ? "Enviando..." : "Enviar evidencia al admin"}
+            </Button>
+            <Button variant="outline" onClick={() => { setDisputaDialogId(null); setDisputaDescripcion(""); setDisputaEvidencia(null); }}>
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog: Editar Perfil */}
       <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -850,7 +985,7 @@ const ProviderPanel = () => {
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16">
                 {(fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil) ? (
-                  <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil} />
+                  <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : storageUrl(editProfile.foto_perfil)} />
                 ) : null}
                 <AvatarFallback className="bg-accent text-accent-foreground text-xl">
                   {editProfile.name ? editProfile.name[0] + (editProfile.apellido ? editProfile.apellido[0] : "") : "PV"}

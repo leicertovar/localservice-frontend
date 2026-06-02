@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { obtenerConversacion, enviarMensaje, type Mensaje } from "@/services/mensajeService";
+import { storageUrl } from "@/lib/api";
 
 interface ChatPanelProps {
   contactName: string;
@@ -19,6 +20,7 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const miId = localStorage.getItem('user_profile') ? JSON.parse(localStorage.getItem('user_profile')!).id : null;
 
@@ -59,7 +61,7 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
     }
   };
 
-  const handleArchivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArchivo = async (e: React.ChangeEvent<HTMLInputElement>, ref: React.RefObject<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     if (!archivo || !contactId) return;
     setEnviando(true);
@@ -70,7 +72,7 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
       console.error("Error al enviar archivo:", err);
     } finally {
       setEnviando(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (ref.current) ref.current.value = "";
     }
   };
 
@@ -88,18 +90,18 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
           {msg.tipo === 'texto' && (
             <p className="text-sm leading-relaxed">{msg.contenido}</p>
           )}
-          {msg.tipo === 'imagen' && (
-            <a href={msg.url_archivo} target="_blank" rel="noopener noreferrer">
-              <img src={msg.url_archivo} alt="imagen" className="max-w-full rounded-lg max-h-48 object-cover" />
+          {msg.tipo === 'imagen' && msg.url_archivo && (
+            <a href={storageUrl(msg.url_archivo)} target="_blank" rel="noopener noreferrer">
+              <img src={storageUrl(msg.url_archivo)} alt="imagen" className="max-w-full rounded-lg max-h-48 object-cover" />
             </a>
           )}
-          {msg.tipo === 'video' && (
-            <a href={msg.url_archivo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm">
+          {msg.tipo === 'video' && msg.url_archivo && (
+            <a href={storageUrl(msg.url_archivo)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm">
               <Video className="w-4 h-4" />{msg.nombre_archivo}
             </a>
           )}
-          {msg.tipo === 'documento' && (
-            <a href={msg.url_archivo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm">
+          {msg.tipo === 'documento' && msg.url_archivo && (
+            <a href={storageUrl(msg.url_archivo)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm">
               <FileText className="w-4 h-4" />{msg.nombre_archivo}
             </a>
           )}
@@ -140,35 +142,44 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
 
       {/* Input */}
       <div className="p-3 border-t bg-card">
+        {/* Input oculto para documentos/videos */}
         <input
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept="image/*,video/*,.pdf,.doc,.docx,.xlsx"
-          onChange={handleArchivo}
+          accept=".pdf,.doc,.docx,.xlsx,video/*"
+          onChange={e => handleArchivo(e, fileInputRef)}
+        />
+        {/* Input oculto solo para imágenes */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*"
+          onChange={e => handleArchivo(e, imageInputRef)}
         />
         <form onSubmit={e => { e.preventDefault(); handleSend(); }} className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
             onClick={() => fileInputRef.current?.click()}
             disabled={enviando}
-            title="Adjuntar archivo"
+            title="Adjuntar documento o video (PDF, DOC, video)"
           >
-            <Paperclip className="w-4 h-4 text-muted-foreground" />
+            <Paperclip className="w-4 h-4" />
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => { if (fileInputRef.current) { fileInputRef.current.accept = "image/*"; fileInputRef.current.click(); } }}
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-warning hover:bg-warning/10"
+            onClick={() => imageInputRef.current?.click()}
             disabled={enviando}
-            title="Enviar imagen"
+            title="Adjuntar imagen (JPG, PNG, etc.)"
           >
-            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+            <ImageIcon className="w-4 h-4" />
           </Button>
           <Input
             placeholder="Escribe un mensaje..."

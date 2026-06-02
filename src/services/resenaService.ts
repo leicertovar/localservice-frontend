@@ -64,3 +64,10 @@ export const obtenerResenasReportadas = async (): Promise<Resena[]> => {
 export const moderarResena = async (id: number, accion: 'ocultar' | 'restaurar'): Promise<void> => {
   await api.patch(`/admin/resenas/${id}/moderar`, { accion })
 }
+
+/**
+ * Admin: Elimina definitivamente una reseña.
+ */
+export const eliminarResena = async (id: number): Promise<void> => {
+  await api.delete(`/admin/resenas/${id}`)
+}

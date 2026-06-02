@@ -27,4 +27,15 @@ api.interceptors.response.use(
   }
 )
 
+/**
+ * Convierte una ruta relativa del backend (/storage/...) a URL absoluta.
+ * Si la ruta ya es una URL completa o es nula, la retorna sin cambios.
+ */
+export const storageUrl = (path: string | null | undefined): string => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const base = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  return `${base}${path}`;
+};
+
 export default api

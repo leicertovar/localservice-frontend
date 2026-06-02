@@ -1,6 +1,7 @@
 import { Phone, MapPin, Home, BarChart2, Mail, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { storageUrl } from "@/lib/api";
 
 interface ProfileData {
   id: string;
@@ -46,7 +47,7 @@ const PerfilSection = ({ profileData, totalSolicitudes, onOpenEditProfile }: Pro
         <div className="bg-hero p-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-18 h-18 ring-4 ring-white/30 shadow-lg" style={{ width: 72, height: 72 }}>
-              {profileData.foto_perfil && <AvatarImage src={profileData.foto_perfil} alt={profileData.name} />}
+              {profileData.foto_perfil && <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} />}
               <AvatarFallback className="bg-white/20 text-white text-2xl font-bold">
                 {iniciales}
               </AvatarFallback>

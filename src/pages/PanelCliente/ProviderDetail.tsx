@@ -1,19 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, Clock, Shield, MessageCircle, Calendar, CheckCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, Star, MapPin, Clock, Shield, MessageCircle, Calendar, CheckCircle, DollarSign, Flag } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import ChatPanel from "@/components/reusable/ChatPanel";
 import { obtenerDetalleProveedor } from "@/services/proveedorService";
 import { crearSolicitud } from "@/services/reservaService";
+import { obtenerResenas, crearResena, reportarResena, type Resena } from "@/services/resenaService";
+import { storageUrl } from "@/lib/api";
 
 // Días de la semana para el horario
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -48,6 +51,14 @@ const ProviderDetail = () => {
   const [latitud, setLatitud] = useState<number>(3.8801); // Centro de Buenaventura
   const [longitud, setLongitud] = useState<number>(-77.0707);
 
+  const [resenas, setResenas] = useState<Resena[]>([]);
+  const [yaReseno, setYaReseno] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [enviandoResena, setEnviandoResena] = useState(false);
+  const [reportDialogId, setReportDialogId] = useState<number | null>(null);
+  const [reportMotivo, setReportMotivo] = useState("");
+
   const { toast } = useToast();
 
   // Referencias para el mapa de Leaflet
@@ -57,6 +68,21 @@ const ProviderDetail = () => {
   /**
    * Carga los datos del proveedor y sus servicios desde el backend.
    */
+  const cargarResenas = async () => {
+    if (!id) return;
+    try {
+      const lista = await obtenerResenas(id);
+      setResenas(lista);
+      // Verificar si el usuario autenticado ya dejó una reseña
+      const perfil = localStorage.getItem('user_profile');
+      if (perfil) {
+        const user = JSON.parse(perfil);
+        const yaExiste = lista.some(r => String(r.cliente_id) === String(user.id));
+        setYaReseno(yaExiste);
+      }
+    } catch {}
+  };
+
   const cargarInformacionProveedor = async () => {
     if (!id) return;
     try {
@@ -80,6 +106,7 @@ const ProviderDetail = () => {
 
   useEffect(() => {
     cargarInformacionProveedor();
+    cargarResenas();
   }, [id]);
 
   /**
@@ -204,6 +231,36 @@ const ProviderDetail = () => {
     }
   };
 
+  const enviarReporte = async () => {
+    if (reportDialogId === null || !reportMotivo.trim()) return;
+    try {
+      await reportarResena(reportDialogId, reportMotivo);
+      toast({ title: "Reseña reportada", description: "El administrador revisará el reporte." });
+      setReportDialogId(null);
+      setReportMotivo("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo enviar el reporte.", variant: "destructive" });
+    }
+  };
+
+  const enviarResena = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !reviewComment.trim()) return;
+    setEnviandoResena(true);
+    try {
+      await crearResena({ proveedor_id: id, calificacion: reviewRating, comentario: reviewComment });
+      toast({ title: "Reseña publicada", description: "Tu calificación ha sido enviada al proveedor." });
+      setReviewComment("");
+      setReviewRating(5);
+      setYaReseno(true);
+      await cargarResenas();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.response?.data?.mensaje || "No se pudo publicar la reseña.", variant: "destructive" });
+    } finally {
+      setEnviandoResena(false);
+    }
+  };
+
   /**
    * Normaliza la estructura del horario guardado (soporta string plano y JSON).
    */
@@ -252,21 +309,12 @@ const ProviderDetail = () => {
   const iniciales = `${proveedor.nombre ? proveedor.nombre[0] : ""}${proveedor.apellido ? proveedor.apellido[0] : ""}`;
   const servicios = proveedor.servicios || [];
 
-  // Distribución de calificaciones (Estático para maqueta visual de estrellas)
-  const ratingDistribution = [
-    { stars: 5, count: 98, percent: 77 },
-    { stars: 4, count: 22, percent: 17 },
-    { stars: 3, count: 5, percent: 4 },
-    { stars: 2, count: 2, percent: 1.5 },
-    { stars: 1, count: 1, percent: 0.5 },
-  ];
-
-  // Reseñas estáticas (Mock)
-  const reviewsList = [
-    { id: 1, client: "Ana García", rating: 5, comment: "Excelente trabajo, muy puntual y profesional. Reparó la fuga en menos de una hora.", date: "2026-04-01", response: "¡Gracias Ana! Fue un placer atenderte. Cualquier cosa, estoy a la orden." },
-    { id: 2, client: "Pedro López", rating: 4, comment: "Buen servicio, solucionó el problema rápido. El precio fue justo.", date: "2026-03-25", response: null },
-    { id: 3, client: "María Torres", rating: 5, comment: "Lo recomiendo ampliamente. Muy buen precio y excelente calidad de trabajo.", date: "2026-03-20", response: "¡Muchas gracias María! Me alegra que hayas quedado satisfecha." },
-  ];
+  // Distribución de calificaciones calculada de las reseñas reales
+  const ratingDistribution = [5, 4, 3, 2, 1].map(stars => {
+    const count = resenas.filter(r => r.calificacion === stars).length;
+    const percent = resenas.length > 0 ? (count / resenas.length) * 100 : 0;
+    return { stars, count, percent };
+  });
 
   // Disponibilidad de horario semanal mapeada a partir de los datos JSON del proveedor
   const availability = Object.entries(normalizarHorario(p.horario_atencion)).map(([day, hours]) => ({ day, hours }));
@@ -288,6 +336,7 @@ const ProviderDetail = () => {
         <div className="bg-card rounded-2xl border p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-6">
             <Avatar className="w-24 h-24 shrink-0">
+              {p.foto_perfil && <AvatarImage src={storageUrl(p.foto_perfil)} alt={nombreCompleto} />}
               <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">{iniciales}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
@@ -430,9 +479,9 @@ const ProviderDetail = () => {
             <div className="bg-card rounded-xl border p-6">
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="text-center sm:text-left">
-                  <p className="text-5xl font-bold text-foreground">{p.calificacion || "4.9"}</p>
+                  <p className="text-5xl font-bold text-foreground">{p.calificacion ? Number(p.calificacion).toFixed(1) : "0.0"}</p>
                   <div className="flex gap-0.5 mt-2 justify-center sm:justify-start">
-                    {[1,2,3,4,5].map(s => <Star key={s} className="w-5 h-5 text-warning fill-warning" />)}
+                    {[1,2,3,4,5].map(s => <Star key={s} className={`w-5 h-5 ${s <= Math.round(p.calificacion || 0) ? "text-warning fill-warning" : "text-muted"}`} />)}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{p.total_resenas || 0} reseñas totales</p>
                 </div>
@@ -450,34 +499,80 @@ const ProviderDetail = () => {
               </div>
             </div>
 
-            {/* Listado de Reseñas */}
-            {reviewsList.map(r => (
-              <div key={r.id} className="bg-card rounded-xl border p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-9 h-9">
-                      <AvatarFallback className="text-xs bg-muted">{r.client.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{r.client}</p>
-                      <p className="text-xs text-muted-foreground">{r.date}</p>
+            {/* Formulario de reseña (solo si no ha reseñado) */}
+            {!yaReseno ? (
+              <div className="bg-card rounded-xl border p-5 ring-1 ring-primary/20">
+                <h4 className="font-semibold text-foreground mb-3">Deja tu calificación</h4>
+                <form onSubmit={enviarResena} className="space-y-3">
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <button key={s} type="button" onClick={() => setReviewRating(s)}>
+                        <Star className={`w-7 h-7 ${s <= reviewRating ? "text-warning fill-warning" : "text-muted"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    className="w-full rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/25"
+                    rows={3}
+                    placeholder="Cuéntanos tu experiencia con este proveedor..."
+                    value={reviewComment}
+                    onChange={e => setReviewComment(e.target.value)}
+                    required
+                  />
+                  <Button type="submit" size="sm" disabled={enviandoResena}>
+                    {enviandoResena ? "Publicando..." : "Publicar reseña"}
+                  </Button>
+                </form>
+              </div>
+            ) : (
+              <div className="bg-muted/50 rounded-xl border p-4 text-sm text-muted-foreground text-center">
+                Ya dejaste una reseña para este proveedor.
+              </div>
+            )}
+
+            {/* Listado de Reseñas reales */}
+            {resenas.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Este proveedor aún no tiene reseñas.</p>
+            ) : resenas.map(r => {
+              const nombreCliente = r.cliente ? `${r.cliente.nombre} ${r.cliente.apellido || ""}`.trim() : "Cliente";
+              const iniciales = nombreCliente.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+              return (
+                <div key={r.id} className="bg-card rounded-xl border p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-9 h-9">
+                        <AvatarFallback className="text-xs bg-muted">{iniciales}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{nombreCliente}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString('es-CO')}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: r.calificacion }).map((_, i) => <Star key={i} className="w-4 h-4 text-warning fill-warning" />)}
+                      {Array.from({ length: 5 - r.calificacion }).map((_, i) => <Star key={i} className="w-4 h-4 text-muted" />)}
                     </div>
                   </div>
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: r.rating }).map((_, i) => <Star key={i} className="w-4 h-4 text-warning fill-warning" />)}
-                    {Array.from({ length: 5 - r.rating }).map((_, i) => <Star key={i} className="w-4 h-4 text-muted" />)}
+                  <p className="text-sm text-muted-foreground">{r.comentario}</p>
+
+                  {r.respuesta_proveedor && (
+                    <div className="mt-3 ml-6 pl-4 border-l-2 border-primary/20 bg-primary/[0.03] rounded-r-lg p-3">
+                      <p className="text-xs font-medium text-primary mb-1">Respuesta de {nombreCompleto}</p>
+                      <p className="text-sm text-muted-foreground">{r.respuesta_proveedor}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      onClick={() => { setReportDialogId(r.id); setReportMotivo(""); }}
+                      className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
+                    >
+                      <Flag className="w-3 h-3" />Reportar reseña
+                    </button>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{r.comment}</p>
-
-                {r.response && (
-                  <div className="mt-3 ml-6 pl-4 border-l-2 border-primary/20 bg-primary/[0.03] rounded-r-lg p-3">
-                    <p className="text-xs font-medium text-primary mb-1">Respuesta de {nombreCompleto}</p>
-                    <p className="text-sm text-muted-foreground">{r.response}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="disponibilidad">
@@ -503,6 +598,38 @@ const ProviderDetail = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Dialog: Reportar Reseña */}
+      <Dialog open={reportDialogId !== null} onOpenChange={open => { if (!open) { setReportDialogId(null); setReportMotivo(""); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Flag className="w-4 h-4 text-destructive" />Reportar reseña</DialogTitle>
+            <DialogDescription>Describe por qué consideras que esta reseña es inapropiada o falsa.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder="Ej: Esta reseña es falsa, el usuario nunca contrató el servicio..."
+              rows={4}
+              value={reportMotivo}
+              onChange={e => setReportMotivo(e.target.value)}
+              className="resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={enviarReporte}
+              disabled={!reportMotivo.trim()}
+            >
+              Enviar reporte
+            </Button>
+            <Button variant="outline" onClick={() => { setReportDialogId(null); setReportMotivo(""); }}>
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ChatPanel
         contactName={nombreCompleto}

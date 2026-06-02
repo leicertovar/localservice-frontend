@@ -18,7 +18,9 @@ import {
   rechazarProveedorAdmin,
   obtenerEstadisticasAdmin
 } from '@/services/authService'
-import { obtenerResenasReportadas, moderarResena, type Resena } from '@/services/resenaService'
+import { obtenerResenasReportadas, moderarResena, eliminarResena, type Resena } from '@/services/resenaService'
+import { listarDisputas, resolverDisputa } from '@/services/reservaService'
+import { storageUrl } from '@/lib/api'
 
 interface UserData {
   id: string | number;
@@ -33,7 +35,9 @@ interface UserData {
   completedJobs?: number;
   rating?: number;
   servicesRequested?: number;
-  url_documento?: string | null;
+  doc_cedula?: string | null;
+  doc_rut?: string | null;
+  doc_diploma?: string | null;
   categoria_servicio?: string | null;
 }
 
@@ -48,6 +52,8 @@ const AdminPanel = () => {
   const [docsDialogUser, setDocsDialogUser] = useState<UserData | null>(null);
   const [notaRechazo, setNotaRechazo] = useState("");
   const [resenasReportadas, setResenasReportadas] = useState<Resena[]>([]);
+  const [disputas, setDisputas] = useState<any[]>([]);
+  const [notaResolucion, setNotaResolucion] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const [stats, setStats] = useState({
@@ -83,7 +89,9 @@ const AdminPanel = () => {
       completedJobs: esProveedor ? (u.perfil_proveedor?.total_resenas || 0) : 0,
       rating: esProveedor ? parseFloat(u.perfil_proveedor?.calificacion || 0) : 0,
       servicesRequested: !esProveedor ? 0 : 0,
-      url_documento: esProveedor ? u.perfil_proveedor?.url_documento : null,
+      doc_cedula:  esProveedor ? u.perfil_proveedor?.doc_cedula  : null,
+      doc_rut:     esProveedor ? u.perfil_proveedor?.doc_rut     : null,
+      doc_diploma: esProveedor ? u.perfil_proveedor?.doc_diploma : null,
       categoria_servicio: esProveedor ? u.perfil_proveedor?.categoria_servicio : null
     };
   };
@@ -115,9 +123,28 @@ const AdminPanel = () => {
     } catch {}
   };
 
+  const cargarDisputas = async () => {
+    try {
+      const data = await listarDisputas();
+      setDisputas(data);
+    } catch {}
+  };
+
+  const handleResolverDisputa = async (id: number, resolucion: 'aprobado' | 'rechazado') => {
+    try {
+      await resolverDisputa(id, resolucion, notaResolucion || undefined);
+      toast({ title: resolucion === 'aprobado' ? 'Disputa aprobada' : 'Disputa rechazada', description: 'La decisión fue notificada a ambas partes.' });
+      setNotaResolucion("");
+      cargarDisputas();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.response?.data?.mensaje || 'No se pudo resolver la disputa.', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     cargarDatos();
     cargarResenasReportadas();
+    cargarDisputas();
   }, []);
 
   // Filtrar los proveedores que tienen verificación pendiente
@@ -201,10 +228,21 @@ const AdminPanel = () => {
   const handleModerarResena = async (id: number, accion: 'ocultar' | 'restaurar') => {
     try {
       await moderarResena(id, accion);
-      toast({ title: accion === 'ocultar' ? 'Reseña ocultada' : 'Reseña restaurada' });
+      toast({ title: accion === 'ocultar' ? 'Reseña ocultada' : 'Reseña conservada' });
       cargarResenasReportadas();
-    } catch {
-      toast({ title: "Error", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo moderar la reseña.", variant: "destructive" });
+    }
+  };
+
+  const handleEliminarResena = async (id: number) => {
+    if (!confirm("¿Eliminar esta reseña definitivamente? Esta acción no se puede deshacer.")) return;
+    try {
+      await eliminarResena(id);
+      toast({ title: "Reseña eliminada", description: "La reseña fue eliminada y la calificación del proveedor recalculada." });
+      cargarResenasReportadas();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo eliminar la reseña.", variant: "destructive" });
     }
   };
 
@@ -286,6 +324,10 @@ const AdminPanel = () => {
             </TabsTrigger>
             <TabsTrigger value="resenas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><MessageSquare className="w-3.5 h-3.5" />Reseñas</TabsTrigger>
             <TabsTrigger value="reportes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><BarChart3 className="w-3.5 h-3.5" />Reportes</TabsTrigger>
+            <TabsTrigger value="disputas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <AlertTriangle className="w-3.5 h-3.5" />Disputas
+              {disputas.length > 0 && <span className="w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold ml-1">{disputas.length}</span>}
+            </TabsTrigger>
           </TabsList>
 
           {/* TAB 1: GESTIÓN DE USUARIOS REAL */}
@@ -427,10 +469,15 @@ const AdminPanel = () => {
                     <p className="text-xs text-muted-foreground mt-1">{new Date(r.created_at).toLocaleDateString('es-CO')}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => handleModerarResena(r.id, 'restaurar')}>Conservar reseña</Button>
-                  <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => handleModerarResena(r.id, 'ocultar')}>
-                    <Trash2 className="w-3 h-3" />Ocultar reseña
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => handleModerarResena(r.id, 'restaurar')}>
+                    Conservar reseña
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-warning gap-1" onClick={() => handleModerarResena(r.id, 'ocultar')}>
+                    Ocultar temporalmente
+                  </Button>
+                  <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleEliminarResena(r.id)}>
+                    <Trash2 className="w-3 h-3" />Eliminar definitivamente
                   </Button>
                 </div>
               </div>
@@ -478,6 +525,93 @@ const AdminPanel = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          {/* TAB 5: DISPUTAS */}
+          <TabsContent value="disputas" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-destructive" />Disputas de Servicios</h2>
+              <Button variant="outline" size="sm" onClick={cargarDisputas}>Actualizar</Button>
+            </div>
+            {disputas.length === 0 ? (
+              <div className="bg-card rounded-xl border p-8 text-center">
+                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
+                <p className="text-foreground font-medium">Sin disputas pendientes</p>
+                <p className="text-sm text-muted-foreground mt-1">No hay servicios en disputa que requieran revisión.</p>
+              </div>
+            ) : disputas.map(d => (
+              <div key={d.id} className="bg-card rounded-xl border border-destructive/20 p-5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">{d.servicio?.nombre || 'Servicio Personalizado'} — Solicitud #{d.id}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Cliente: <strong>{d.cliente ? `${d.cliente.nombre} ${d.cliente.apellido || ''}` : '—'}</strong> ·
+                      Proveedor: <strong>{d.proveedor ? `${d.proveedor.nombre} ${d.proveedor.apellido || ''}` : '—'}</strong> ·
+                      Fecha: {d.fecha}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${d.estado_disputa === 'pendiente_admin' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                    {d.estado_disputa === 'pendiente_admin' ? 'Listo para resolver' : 'Esperando al proveedor'}
+                  </span>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Motivo del cliente</p>
+                    <p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{d.queja_cliente || 'Sin descripción'}</p>
+                    {d.evidencia_cliente && (
+                      /\.(jpg|jpeg|png)$/i.test(d.evidencia_cliente) ? (
+                        <img src={storageUrl(d.evidencia_cliente)} alt="Evidencia cliente" className="w-full max-h-48 object-contain rounded-lg border" />
+                      ) : (
+                        <a href={storageUrl(d.evidencia_cliente)} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-primary underline">
+                          <FileText className="w-3.5 h-3.5" />Ver evidencia del cliente
+                        </a>
+                      )
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Respuesta del proveedor</p>
+                    {d.evidencia_proveedor ? (
+                      <>
+                        <p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{d.queja_cliente?.split('[Proveedor]')[1] || '—'}</p>
+                        {/\.(jpg|jpeg|png)$/i.test(d.evidencia_proveedor) ? (
+                          <img src={storageUrl(d.evidencia_proveedor)} alt="Evidencia proveedor" className="w-full max-h-48 object-contain rounded-lg border" />
+                        ) : (
+                          <a href={storageUrl(d.evidencia_proveedor)} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-xs text-primary underline">
+                            <FileText className="w-3.5 h-3.5" />Ver evidencia del proveedor
+                          </a>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic bg-muted/30 rounded-lg p-3">El proveedor aún no ha aportado evidencia.</p>
+                    )}
+                  </div>
+                </div>
+
+                {d.estado_disputa === 'pendiente_admin' && (
+                  <div className="border-t pt-4 space-y-3">
+                    <p className="text-sm font-semibold text-foreground">Tu decisión final</p>
+                    <textarea
+                      className="w-full rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/25"
+                      rows={2}
+                      placeholder="Nota de resolución (opcional — se enviará a ambas partes)"
+                      value={notaResolucion}
+                      onChange={e => setNotaResolucion(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" className="gap-1 bg-success hover:bg-success/90" onClick={() => handleResolverDisputa(d.id, 'aprobado')}>
+                        <CheckCircle className="w-4 h-4" />Aprobar trabajo del proveedor
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleResolverDisputa(d.id, 'rechazado')}>
+                        <XCircle className="w-4 h-4" />Rechazar — dar la razón al cliente
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </TabsContent>
         </Tabs>
       </div>
@@ -545,85 +679,61 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 3: DOCUMENTOS REALES DE VERIFICACIÓN CON NOTA */}
-      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) { setDocsDialogUser(null); setNotaRechazo(""); } }}>
-        <DialogContent className="sm:max-w-lg">
+      {/* DIALOG 3: DOCUMENTOS DE VERIFICACIÓN */}
+      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) { setDocsDialogUser(null); } }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Verificación de Documentos</DialogTitle>
-            <DialogDescription>Revisa los documentos de {docsDialogUser?.name} y toma una decisión.</DialogDescription>
+            <DialogTitle>Documentos del Proveedor</DialogTitle>
+            <DialogDescription>Revisa los documentos cargados por {docsDialogUser?.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Info del proveedor */}
             <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
               <p><strong>Proveedor:</strong> {docsDialogUser?.name}</p>
               <p><strong>Email:</strong> {docsDialogUser?.email}</p>
               <p><strong>Categoría:</strong> {docsDialogUser?.categoria_servicio || "No especificada"}</p>
             </div>
 
-            {/* Documento */}
-            {docsDialogUser?.url_documento ? (
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-muted-foreground">Documento cargado:</p>
-                {/* Previsualización si es imagen */}
-                {/\.(jpg|jpeg|png|webp)$/i.test(docsDialogUser.url_documento) ? (
-                  <img
-                    src={`http://127.0.0.1:8000${docsDialogUser.url_documento}`}
-                    alt="Documento"
-                    className="w-full rounded-lg border max-h-72 object-contain bg-muted"
-                  />
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Documento de Soporte</p>
-                        <p className="text-xs text-muted-foreground">PDF u otro archivo</p>
+            {[
+              { label: 'Cédula de Ciudadanía', url: docsDialogUser?.doc_cedula },
+              { label: 'RUT', url: docsDialogUser?.doc_rut },
+              { label: 'Diploma / Certificado', url: docsDialogUser?.doc_diploma },
+            ].map(({ label, url }) => (
+              <div key={label} className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+                {url ? (
+                  /\.(jpg|jpeg|png|webp)$/i.test(url) ? (
+                    <img
+                      src={`http://127.0.0.1:8000${url}`}
+                      alt={label}
+                      className="w-full rounded-lg border max-h-56 object-contain bg-muted"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-primary" />
+                        <p className="text-sm font-medium text-foreground">{label} (PDF)</p>
                       </div>
+                      <a
+                        href={`http://127.0.0.1:8000${url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
+                      >
+                        Abrir ↗
+                      </a>
                     </div>
-                    <a
-                      href={`http://127.0.0.1:8000${docsDialogUser.url_documento}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
-                    >
-                      Abrir ↗
-                    </a>
+                  )
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
+                    <AlertTriangle className="w-4 h-4" />
+                    <p className="text-xs font-medium">No cargado</p>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
-                <AlertTriangle className="w-5 h-5" />
-                <p className="text-xs font-medium">El proveedor no cargó ningún documento.</p>
-              </div>
-            )}
-
-            {/* Nota para rechazo */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Nota de rechazo (opcional — se enviará por correo si rechazas)</Label>
-              <Textarea
-                placeholder="Ej: La cédula no se ve claramente. Por favor cargue un documento más legible."
-                rows={3}
-                value={notaRechazo}
-                onChange={e => setNotaRechazo(e.target.value)}
-              />
-            </div>
+            ))}
           </div>
-          <div className="flex gap-2 pt-2">
-            <Button
-              className="flex-1 bg-success hover:bg-success/90"
-              onClick={() => { if (docsDialogUser) handleVerify(docsDialogUser.id); setDocsDialogUser(null); }}
-            >
-              <CheckCircle className="w-4 h-4 mr-1" />Aprobar
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 text-destructive hover:bg-destructive/10"
-              onClick={() => { if (docsDialogUser) handleRejectVerification(docsDialogUser.id, notaRechazo || undefined); }}
-            >
-              <XCircle className="w-4 h-4 mr-1" />Rechazar
-            </Button>
-            <Button variant="ghost" onClick={() => { setDocsDialogUser(null); setNotaRechazo(""); }}>Cancelar</Button>
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
           </div>
         </DialogContent>
       </Dialog>
