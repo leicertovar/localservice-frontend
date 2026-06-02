@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Search, Star, Users, Shield, ChevronLeft, ChevronRight } from "lucide-react";
-import imagen1 from "@/assets/hero-image.jpg";
-import imagen2 from "@/assets/carpintero.jpg";
-import imagen3 from "@/assets/electricista.jpg";
-import imagen4 from "@/assets/plomero.jpg";
+import imagen1 from "@/assets/hero-image.webp";
+import imagen2 from "@/assets/carpintero.webp";
+import imagen3 from "@/assets/electricista.webp";
+import imagen4 from "@/assets/plomero.webp";
 
 const HeroSection = () => {
   const images = [imagen1, imagen2, imagen3, imagen4]; // arreglo de imágenes para el carrusel
