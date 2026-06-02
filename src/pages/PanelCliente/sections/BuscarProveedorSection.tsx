@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { storageUrl } from "@/lib/api";
 
 const CATEGORIAS = ["Todas", "Plomería", "Electricidad", "Limpieza", "Pintura", "Jardinería", "Tecnología", "Otro"];
 
@@ -160,7 +161,7 @@ const BuscarProveedorSection = ({
             <div key={provider.id} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200">
               <div className="flex items-start gap-3 mb-4">
                 <Avatar className="w-12 h-12 ring-2 ring-background shadow-sm">
-                  {provider.foto_perfil && <AvatarImage src={provider.foto_perfil} alt={provider.name} />}
+                  {provider.foto_perfil && <AvatarImage src={storageUrl(provider.foto_perfil)} alt={provider.name} />}
                   <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
                     {provider.name ? provider.name.split(" ").map((n: string) => n[0]).join("") : "PV"}
                   </AvatarFallback>

@@ -157,8 +157,8 @@ export const registrarUsuario = async (
   // Rellenamos el FormData con todos los campos provistos
   Object.entries(datos).forEach(([llave, valor]) => {
     if (valor !== undefined && valor !== null) {
-      if (llave === 'documento' && valor instanceof File) {
-        formData.append('documento', valor)
+      if (valor instanceof File) {
+        formData.append(llave, valor)
       } else {
         formData.append(llave, String(valor))
       }
@@ -262,7 +262,7 @@ export const verDocumentoProveedorAdmin = async (id: string | number): Promise<{
  * Actualiza el perfil del cliente autenticado
  */
 export const actualizarPerfilCliente = async (datos: FormData): Promise<any> => {
-  const { data } = await api.put('/cliente/perfil', datos, {
+  const { data } = await api.post('/cliente/perfil', datos, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
   return data

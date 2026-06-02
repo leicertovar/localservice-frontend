@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import ChatPanel from "@/components/reusable/ChatPanel";
 import { fetchCurrentUser, getUserProfile, actualizarPerfilCliente } from "@/services/authService";
+import { storageUrl } from "@/lib/api";
 import { obtenerProveedores } from "@/services/proveedorService";
 import {
   obtenerSolicitudesCliente,
@@ -53,6 +54,7 @@ const ClientPanel = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<SolicitudServicioDatos | null>(null);
   const [quejaTexto, setQuejaTexto] = useState("");
+  const [evidenciaFile, setEvidenciaFile] = useState<File | null>(null);
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -174,13 +176,25 @@ const ClientPanel = () => {
 
   const confirmarServicio = async (accion: 'aceptar' | 'rechazar') => {
     if (!confirmTarget?.id) return;
+    if (accion === 'rechazar' && !quejaTexto.trim()) {
+      toast({ title: "Motivo requerido", description: "Debes describir el motivo del rechazo.", variant: "destructive" });
+      return;
+    }
     try {
-      await confirmarCompletado(confirmTarget.id, accion, accion === 'rechazar' ? quejaTexto : undefined);
+      await confirmarCompletado(
+        confirmTarget.id,
+        accion,
+        accion === 'rechazar' ? quejaTexto : undefined,
+        accion === 'rechazar' ? (evidenciaFile ?? undefined) : undefined
+      );
       setConfirmDialogOpen(false);
       setQuejaTexto("");
+      setEvidenciaFile(null);
       toast({
-        title: accion === 'aceptar' ? "Servicio confirmado" : "Queja enviada",
-        description: accion === 'aceptar' ? "¡Gracias por confirmar! Ya puedes dejar tu reseña." : "Tu queja ha sido enviada al administrador.",
+        title: accion === 'aceptar' ? "Servicio confirmado" : "Disputa abierta",
+        description: accion === 'aceptar'
+          ? "¡Gracias por confirmar! Ya puedes dejar tu reseña."
+          : "Tu disputa fue registrada. El proveedor tiene 48h para aportar su evidencia.",
       });
       cargarSolicitudesCliente();
     } catch {
@@ -253,7 +267,7 @@ const ClientPanel = () => {
             </div>
 
             <Avatar className="w-8 h-8 ring-2 ring-primary/20">
-              {profileData.foto_perfil ? <AvatarImage src={profileData.foto_perfil} alt={profileData.name} /> : null}
+              {profileData.foto_perfil ? <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} /> : null}
               <AvatarFallback className="bg-primary text-white text-xs font-bold">
                 {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
               </AvatarFallback>
@@ -362,7 +376,7 @@ const ClientPanel = () => {
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16 ring-2 ring-primary/20">
                 {(fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil) && (
-                  <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : editProfile.foto_perfil} />
+                  <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : storageUrl(editProfile.foto_perfil)} />
                 )}
                 <AvatarFallback className="bg-primary text-white text-xl font-bold">
                   {editProfile.name ? editProfile.name.split(" ").map(n => n[0]).join("") : "CL"}
@@ -483,7 +497,7 @@ const ClientPanel = () => {
       </Dialog>
 
       {/* Dialog: Confirmar Servicio Completado */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      <Dialog open={confirmDialogOpen} onOpenChange={open => { setConfirmDialogOpen(open); if (!open) { setQuejaTexto(""); setEvidenciaFile(null); } }}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Confirmar Servicio</DialogTitle>
@@ -497,29 +511,43 @@ const ClientPanel = () => {
               <p><span className="font-semibold">Monto:</span> {confirmTarget?.monto_cotizado}</p>
               <p><span className="font-semibold">Fecha:</span> {confirmTarget?.fecha}</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">¿Tienes alguna queja? (solo si rechazas)</Label>
-              <Textarea
-                placeholder="Describe el problema si el servicio no fue satisfactorio..."
-                rows={3}
-                value={quejaTexto}
-                onChange={e => setQuejaTexto(e.target.value)}
-                className="rounded-xl border-border/70 resize-none"
-              />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button
-                onClick={() => confirmarServicio('aceptar')}
-                className="flex-1 h-10 rounded-xl font-semibold bg-success hover:bg-success/90 text-success-foreground"
-              >
-                ✓ Aceptar servicio
-              </Button>
+
+            <Button
+              onClick={() => confirmarServicio('aceptar')}
+              className="w-full h-10 rounded-xl font-semibold bg-success hover:bg-success/90 text-success-foreground"
+            >
+              ✓ Confirmar — el trabajo fue realizado correctamente
+            </Button>
+
+            <div className="border border-destructive/20 rounded-xl p-4 space-y-3 bg-destructive/[0.03]">
+              <p className="text-sm font-semibold text-destructive">Rechazar — el trabajo NO fue realizado</p>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Motivo del rechazo (obligatorio)</Label>
+                <Textarea
+                  placeholder="Describe qué faltó o qué salió mal..."
+                  rows={3}
+                  value={quejaTexto}
+                  onChange={e => setQuejaTexto(e.target.value)}
+                  className="rounded-xl border-border/70 resize-none text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Evidencia (foto o PDF — recomendado)</Label>
+                <Input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  className="text-xs h-9 rounded-lg"
+                  onChange={e => setEvidenciaFile(e.target.files?.[0] || null)}
+                />
+                {evidenciaFile && <p className="text-[11px] text-success">✓ {evidenciaFile.name}</p>}
+              </div>
               <Button
                 variant="outline"
-                className="h-10 rounded-xl font-semibold text-destructive border-destructive/30 hover:bg-destructive/5"
+                className="w-full h-10 rounded-xl font-semibold text-destructive border-destructive/30 hover:bg-destructive/10"
                 onClick={() => confirmarServicio('rechazar')}
+                disabled={!quejaTexto.trim()}
               >
-                Rechazar
+                Abrir disputa
               </Button>
             </div>
           </div>

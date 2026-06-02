@@ -24,6 +24,11 @@ export interface SolicitudServicioDatos {
   marcado_pagado?: boolean;
   confirmacion_cliente?: 'aceptado' | 'rechazado' | null;
   queja_cliente?: string | null;
+  evidencia_cliente?: string | null;
+  evidencia_proveedor?: string | null;
+  estado_disputa?: 'pendiente_proveedor' | 'pendiente_admin' | 'resuelto' | null;
+  resolucion_admin?: 'aprobado' | 'rechazado' | null;
+  nota_admin?: string | null;
   cliente?: {
     id: string;
     nombre: string;
@@ -127,8 +132,49 @@ export const marcarCompletado = async (id: number): Promise<any> => {
 
 /**
  * El cliente confirma o rechaza un servicio completado.
+ * Si rechaza, puede adjuntar queja y evidencia (File).
  */
-export const confirmarCompletado = async (id: number, accion: 'aceptar' | 'rechazar', queja?: string): Promise<any> => {
-  const { data } = await api.post(`/solicitudes/${id}/confirmar`, { accion, queja });
+export const confirmarCompletado = async (
+  id: number,
+  accion: 'aceptar' | 'rechazar',
+  queja?: string,
+  evidencia?: File
+): Promise<any> => {
+  const formData = new FormData();
+  formData.append('accion', accion);
+  if (queja) formData.append('queja', queja);
+  if (evidencia) formData.append('evidencia', evidencia);
+  const { data } = await api.post(`/solicitudes/${id}/confirmar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+};
+
+/**
+ * El proveedor aporta evidencia en una disputa.
+ */
+export const aportarEvidenciaProveedor = async (id: number, descripcion: string, evidencia: File): Promise<any> => {
+  const formData = new FormData();
+  formData.append('descripcion', descripcion);
+  formData.append('evidencia', evidencia);
+  const { data } = await api.post(`/solicitudes/${id}/evidencia-proveedor`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data;
+};
+
+/**
+ * Admin: lista disputas activas.
+ */
+export const listarDisputas = async (): Promise<any[]> => {
+  const { data } = await api.get('/admin/disputas');
+  return data;
+};
+
+/**
+ * Admin: resuelve una disputa.
+ */
+export const resolverDisputa = async (id: number, resolucion: 'aprobado' | 'rechazado', nota?: string): Promise<any> => {
+  const { data } = await api.post(`/admin/disputas/${id}/resolver`, { resolucion, nota });
   return data;
 };

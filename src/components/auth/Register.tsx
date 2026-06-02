@@ -25,7 +25,9 @@ const Register = () => {
     categoria_servicio: 'Plomería',
   })
 
-  const [documentoFile, setDocumentoFile] = useState<File | null>(null)
+  const [docCedula, setDocCedula] = useState<File | null>(null)
+  const [docRut, setDocRut] = useState<File | null>(null)
+  const [docDiploma, setDocDiploma] = useState<File | null>(null)
 
   const manejarRegistro = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,13 +48,14 @@ const Register = () => {
       }
       if (role === 'proveedor') {
         datosRegistro.categoria_servicio = form.categoria_servicio
-        if (documentoFile) {
-          datosRegistro.documento = documentoFile
-        } else {
-          toast({ title: 'Documento requerido', description: 'Por favor adjunte un documento (PDF o imagen) para verificar su cuenta comercial.', variant: 'destructive' })
+        if (!docCedula || !docRut || !docDiploma) {
+          toast({ title: 'Documentos requeridos', description: 'Debes adjuntar los 3 documentos: Cédula, RUT y Diploma/Certificado.', variant: 'destructive' })
           setIsLoading(false)
           return
         }
+        datosRegistro.doc_cedula  = docCedula
+        datosRegistro.doc_rut     = docRut
+        datosRegistro.doc_diploma = docDiploma
       }
       await registrarUsuario(datosRegistro)
       if (role === 'proveedor') {
@@ -193,17 +196,35 @@ const Register = () => {
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-primary">Documento de Soporte / Cédula / Certificados</Label>
-                <Input
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
-                  onChange={e => { const archivo = e.target.files?.[0]; if (archivo) setDocumentoFile(archivo); }}
-                  required
-                  className="h-11 rounded-xl border-border/70 bg-white file:bg-primary file:text-white file:rounded-lg file:border-0 file:px-3 file:py-1 file:text-xs file:font-medium cursor-pointer"
-                />
-                <p className="text-[11px] text-muted-foreground">PDF, PNG o JPG. Adjunta tu documento de identidad o RUT para validar tu cuenta comercial.</p>
-              </div>
+              {/* Documentos obligatorios: 3 archivos */}
+              {[
+                { label: 'Cédula de Ciudadanía', setter: setDocCedula, file: docCedula },
+                { label: 'RUT', setter: setDocRut, file: docRut },
+                { label: 'Diploma o Certificado Profesional', setter: setDocDiploma, file: docDiploma },
+              ].map(({ label, setter, file }) => (
+                <div key={label} className="space-y-1.5">
+                  <Label className="text-sm font-medium text-primary">{label}</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={e => {
+                      const archivo = e.target.files?.[0];
+                      if (!archivo) return;
+                      const ext = archivo.name.split('.').pop()?.toLowerCase();
+                      if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext || '')) {
+                        toast({ title: 'Formato no permitido', description: 'Solo se aceptan archivos PDF, JPG o PNG.', variant: 'destructive' });
+                        e.target.value = '';
+                        return;
+                      }
+                      setter(archivo);
+                    }}
+                    required
+                    className="h-11 rounded-xl border-border/70 bg-white file:bg-primary file:text-white file:rounded-lg file:border-0 file:px-3 file:py-1 file:text-xs file:font-medium cursor-pointer"
+                  />
+                  {file && <p className="text-[11px] text-success">✓ {file.name}</p>}
+                </div>
+              ))}
+              <p className="text-[11px] text-muted-foreground">Formatos aceptados: PDF, JPG, PNG. Máximo 10 MB por archivo.</p>
             </div>
           )}
 
