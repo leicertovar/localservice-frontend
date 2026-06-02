@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, Search, CheckCircle, XCircle, Eye, Trash2, AlertTriangle, FileText, Mail, Phone, Calendar, Star } from "lucide-react";
+import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, AlertTriangle, FileText, Mail, Phone, Calendar, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +19,11 @@ import {
 } from '@/services/authService'
 import { obtenerResenasReportadas, moderarResena, eliminarResena, type Resena } from '@/services/resenaService'
 import { listarDisputas, resolverDisputa } from '@/services/reservaService'
-import { storageUrl } from '@/lib/api'
+import UsuariosSection from "./sections/UsuariosSection";
+import VerificacionSection from "./sections/VerificacionSection";
+import ResenasSection from "./sections/ResenasSection";
+import ReportesSection from "./sections/ReportesSection";
+import DisputasSection from "./sections/DisputasSection";
 
 interface UserData {
   id: string | number;
@@ -40,7 +43,6 @@ interface UserData {
   doc_diploma?: string | null;
   categoria_servicio?: string | null;
 }
-
 
 const AdminPanel = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -68,14 +70,10 @@ const AdminPanel = () => {
 
   const { toast } = useToast();
 
-  /**
-   * Mapea el formato relacional del backend de Laravel al formato esperado por la UI del frontend.
-   */
   const mapearUsuario = (u: any): UserData => {
     const esProveedor = u.rol_id === 2;
     const esAdmin = u.rol_id === 3;
     const rolNombre = esProveedor ? "Proveedor" : esAdmin ? "Admin" : "Cliente";
-    
     return {
       id: u.id,
       name: `${u.nombre} ${u.apellido || ''}`.trim(),
@@ -96,9 +94,6 @@ const AdminPanel = () => {
     };
   };
 
-  /**
-   * Carga todos los usuarios y estadísticas desde la API en español.
-   */
   const cargarDatos = async () => {
     try {
       const listaUsuarios = await obtenerUsuariosAdmin();
@@ -147,26 +142,20 @@ const AdminPanel = () => {
     cargarDisputas();
   }, []);
 
-  // Filtrar los proveedores que tienen verificación pendiente
   const pendingVerifications = users.filter(u => u.role === "Proveedor" && !u.verified);
-
-  // Filtrar los usuarios según el campo de búsqueda
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchUsers.toLowerCase()) ||
     u.email.toLowerCase().includes(searchUsers.toLowerCase())
   );
 
-  /**
-   * Administrador: Confirma y elimina definitivamente a un usuario del sistema.
-   */
   const handleDeleteUser = async () => {
     if (!deleteConfirm) return;
     try {
       await eliminarUsuarioAdmin(deleteConfirm.id);
-      toast({ 
-        title: "Usuario eliminado", 
-        description: `${deleteConfirm.name} ha sido eliminado de forma definitiva del sistema.`, 
-        variant: "destructive" 
+      toast({
+        title: "Usuario eliminado",
+        description: `${deleteConfirm.name} ha sido eliminado de forma definitiva del sistema.`,
+        variant: "destructive"
       });
       setDeleteConfirm(null);
       await cargarDatos();
@@ -179,15 +168,12 @@ const AdminPanel = () => {
     }
   };
 
-  /**
-   * Administrador: Aprueba a un proveedor, activando su estatus y notificándolo.
-   */
   const handleVerify = async (userId: string | number) => {
     try {
       await aprobarProveedorAdmin(userId);
-      toast({ 
-        title: "Proveedor verificado exitosamente", 
-        description: "La cuenta ha sido habilitada y se ha enviado la notificación por correo SMTP." 
+      toast({
+        title: "Proveedor verificado exitosamente",
+        description: "La cuenta ha sido habilitada y se ha enviado la notificación por correo SMTP."
       });
       await cargarDatos();
     } catch (err: any) {
@@ -199,9 +185,6 @@ const AdminPanel = () => {
     }
   };
 
-  /**
-   * Administrador: Rechaza a un proveedor con nota opcional.
-   */
   const handleRejectVerification = async (userId: string | number, nota?: string) => {
     try {
       await rechazarProveedorAdmin(userId, nota);
@@ -222,9 +205,6 @@ const AdminPanel = () => {
     }
   };
 
-  /**
-   * Administrador: Modera una reseña reportada.
-   */
   const handleModerarResena = async (id: number, accion: 'ocultar' | 'restaurar') => {
     try {
       await moderarResena(id, accion);
@@ -291,8 +271,7 @@ const AdminPanel = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 animate-in fade-in duration-300">
-        
-        {/* Fila superior de Tarjetas de Estadísticas Reales */}
+        {/* Tarjetas de estadísticas */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: "Total Usuarios", value: stats.total_usuarios.toString(), icon: Users, color: "text-primary", bg: "bg-primary/10" },
@@ -312,7 +291,9 @@ const AdminPanel = () => {
 
         <Tabs defaultValue="usuarios" className="space-y-6">
           <TabsList className="bg-white border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1">
-            <TabsTrigger value="usuarios" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><Users className="w-3.5 h-3.5" />Usuarios</TabsTrigger>
+            <TabsTrigger value="usuarios" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <Users className="w-3.5 h-3.5" />Usuarios
+            </TabsTrigger>
             <TabsTrigger value="verificacion" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
               <ShieldCheck className="w-3.5 h-3.5" />
               Verificación
@@ -322,301 +303,67 @@ const AdminPanel = () => {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="resenas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><MessageSquare className="w-3.5 h-3.5" />Reseñas</TabsTrigger>
-            <TabsTrigger value="reportes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"><BarChart3 className="w-3.5 h-3.5" />Reportes</TabsTrigger>
+            <TabsTrigger value="resenas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <MessageSquare className="w-3.5 h-3.5" />Reseñas
+            </TabsTrigger>
+            <TabsTrigger value="reportes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
+              <BarChart3 className="w-3.5 h-3.5" />Reportes
+            </TabsTrigger>
             <TabsTrigger value="disputas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
               <AlertTriangle className="w-3.5 h-3.5" />Disputas
-              {disputas.length > 0 && <span className="w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold ml-1">{disputas.length}</span>}
+              {disputas.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold ml-1">
+                  {disputas.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
-          {/* TAB 1: GESTIÓN DE USUARIOS REAL */}
-          <TabsContent value="usuarios" className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-semibold text-foreground">Gestión de Usuarios</h2>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nombre o correo..." className="pl-10" value={searchUsers} onChange={e => setSearchUsers(e.target.value)} />
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Usuario</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Rol</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Estado</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Registro</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map(u => (
-                      <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-xs bg-muted font-bold text-foreground">
-                                {u.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{u.name}</p>
-                              <p className="text-xs text-muted-foreground">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3"><Badge variant="secondary" className="text-xs">{u.role}</Badge></td>
-                        <td className="px-4 py-3">
-                          <Badge className={`text-xs ${u.status === "Activo" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{u.status}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{u.date}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedUser(u)}><Eye className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(u)}><Trash2 className="w-4 h-4" /></Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredUsers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
-                          No se encontraron usuarios registrados
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <TabsContent value="usuarios">
+            <UsuariosSection
+              filteredUsers={filteredUsers}
+              searchUsers={searchUsers}
+              onSearchChange={setSearchUsers}
+              onViewUser={setSelectedUser}
+              onDeleteUser={setDeleteConfirm}
+            />
           </TabsContent>
 
-          {/* TAB 2: VERIFICACIÓN DE PROVEEDORES REAL */}
-          <TabsContent value="verificacion" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Verificación de Proveedores</h2>
-            {pendingVerifications.length === 0 ? (
-              <div className="bg-card rounded-xl border p-8 text-center">
-                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
-                <p className="text-foreground font-medium text-lg">¡Todo al día!</p>
-                <p className="text-sm text-muted-foreground mt-1">No hay solicitudes de proveedores pendientes de verificación comercial.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {pendingVerifications.map(p => (
-                  <div key={p.id} className="bg-card rounded-xl border p-5 hover:shadow-sm transition-shadow">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className="bg-warning/10 text-warning font-bold text-lg">
-                            {p.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-foreground">{p.name}</h3>
-                            <Badge variant="outline" className="text-[10px]">{p.categoria_servicio || "Proveedor"}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{p.email}</p>
-                          <p className="text-xs text-muted-foreground">Registrado: {p.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setDocsDialogUser(p)}><Eye className="w-4 h-4" />Ver documento</Button>
-                        <Button size="sm" className="gap-1 bg-success hover:bg-success/90" onClick={() => handleVerify(p.id)}><CheckCircle className="w-4 h-4" />Aprobar</Button>
-                        <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleRejectVerification(p.id)}><XCircle className="w-4 h-4" />Rechazar</Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <TabsContent value="verificacion">
+            <VerificacionSection
+              pendingVerifications={pendingVerifications}
+              onVerify={handleVerify}
+              onReject={handleRejectVerification}
+              onViewDocs={setDocsDialogUser}
+            />
           </TabsContent>
 
-          {/* TAB 3: MODERACIÓN DE RESEÑAS REALES */}
-          <TabsContent value="resenas" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Reseñas Reportadas</h2>
-              <Button variant="outline" size="sm" onClick={cargarResenasReportadas}>Actualizar</Button>
-            </div>
-            {resenasReportadas.length === 0 ? (
-              <div className="bg-card rounded-xl border p-8 text-center">
-                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
-                <p className="text-foreground font-medium">Sin reportes pendientes</p>
-                <p className="text-sm text-muted-foreground mt-1">No hay reseñas reportadas que necesiten revisión.</p>
-              </div>
-            ) : resenasReportadas.map(r => (
-              <div key={r.id} className="bg-card rounded-xl border p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground text-sm">
-                        {r.cliente ? `${r.cliente.nombre} ${r.cliente.apellido || ""}` : "Cliente"}
-                      </h3>
-                      <span className="text-xs text-muted-foreground">→</span>
-                      <span className="text-xs text-muted-foreground">Proveedor</span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex gap-0.5">
-                        {Array.from({length: r.calificacion}).map((_, i) => <Star key={i} className="w-3 h-3 text-warning fill-warning" />)}
-                      </div>
-                      {r.motivo_reporte && (
-                        <Badge className="text-xs bg-destructive/10 text-destructive">{r.motivo_reporte}</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{r.comentario}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(r.created_at).toLocaleDateString('es-CO')}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => handleModerarResena(r.id, 'restaurar')}>
-                    Conservar reseña
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-warning gap-1" onClick={() => handleModerarResena(r.id, 'ocultar')}>
-                    Ocultar temporalmente
-                  </Button>
-                  <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleEliminarResena(r.id)}>
-                    <Trash2 className="w-3 h-3" />Eliminar definitivamente
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <TabsContent value="resenas">
+            <ResenasSection
+              resenasReportadas={resenasReportadas}
+              onModerar={handleModerarResena}
+              onEliminar={handleEliminarResena}
+              onActualizar={cargarResenasReportadas}
+            />
           </TabsContent>
 
-          {/* TAB 4: REPORTES Y ESTADÍSTICAS REALES */}
-          <TabsContent value="reportes" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Reportes y Estadísticas</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-card rounded-xl border p-6 space-y-5">
-                <h3 className="font-semibold text-foreground">Usuarios por Rol</h3>
-                <div className="space-y-4">
-                  {[
-                    { label: "Clientes", value: stats.clientes_count, total: stats.total_usuarios, color: "bg-primary" },
-                    { label: "Proveedores", value: stats.proveedores_count, total: stats.total_usuarios, color: "bg-amber-500" },
-                  ].map(item => (
-                    <div key={item.label}>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="text-foreground font-medium">{item.label}</span>
-                        <span className="text-muted-foreground">{item.value} ({item.total > 0 ? Math.round((item.value / item.total) * 100) : 0}%)</span>
-                      </div>
-                      <div className="h-3 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${item.color} rounded-full transition-all duration-500`} 
-                          style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }} 
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-card rounded-xl border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Categorías con Proveedores</h3>
-                <div className="space-y-3">
-                  {stats.categorias.map((s, i) => (
-                    <div key={s.categoria_servicio} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                      <span className="text-sm text-foreground font-medium">{i + 1}. {s.categoria_servicio}</span>
-                      <span className="text-sm font-semibold text-muted-foreground">{s.total} proveedor{s.total !== 1 ? 'es' : ''}</span>
-                    </div>
-                  ))}
-                  {stats.categorias.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">No hay proveedores registrados todavía.</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          <TabsContent value="reportes">
+            <ReportesSection stats={stats} />
           </TabsContent>
 
-          {/* TAB 5: DISPUTAS */}
-          <TabsContent value="disputas" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-destructive" />Disputas de Servicios</h2>
-              <Button variant="outline" size="sm" onClick={cargarDisputas}>Actualizar</Button>
-            </div>
-            {disputas.length === 0 ? (
-              <div className="bg-card rounded-xl border p-8 text-center">
-                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
-                <p className="text-foreground font-medium">Sin disputas pendientes</p>
-                <p className="text-sm text-muted-foreground mt-1">No hay servicios en disputa que requieran revisión.</p>
-              </div>
-            ) : disputas.map(d => (
-              <div key={d.id} className="bg-card rounded-xl border border-destructive/20 p-5 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-foreground">{d.servicio?.nombre || 'Servicio Personalizado'} — Solicitud #{d.id}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Cliente: <strong>{d.cliente ? `${d.cliente.nombre} ${d.cliente.apellido || ''}` : '—'}</strong> ·
-                      Proveedor: <strong>{d.proveedor ? `${d.proveedor.nombre} ${d.proveedor.apellido || ''}` : '—'}</strong> ·
-                      Fecha: {d.fecha}
-                    </p>
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${d.estado_disputa === 'pendiente_admin' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
-                    {d.estado_disputa === 'pendiente_admin' ? 'Listo para resolver' : 'Esperando al proveedor'}
-                  </span>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Motivo del cliente</p>
-                    <p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{d.queja_cliente || 'Sin descripción'}</p>
-                    {d.evidencia_cliente && (
-                      /\.(jpg|jpeg|png)$/i.test(d.evidencia_cliente) ? (
-                        <img src={storageUrl(d.evidencia_cliente)} alt="Evidencia cliente" className="w-full max-h-48 object-contain rounded-lg border" />
-                      ) : (
-                        <a href={storageUrl(d.evidencia_cliente)} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs text-primary underline">
-                          <FileText className="w-3.5 h-3.5" />Ver evidencia del cliente
-                        </a>
-                      )
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Respuesta del proveedor</p>
-                    {d.evidencia_proveedor ? (
-                      <>
-                        <p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{d.queja_cliente?.split('[Proveedor]')[1] || '—'}</p>
-                        {/\.(jpg|jpeg|png)$/i.test(d.evidencia_proveedor) ? (
-                          <img src={storageUrl(d.evidencia_proveedor)} alt="Evidencia proveedor" className="w-full max-h-48 object-contain rounded-lg border" />
-                        ) : (
-                          <a href={storageUrl(d.evidencia_proveedor)} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-xs text-primary underline">
-                            <FileText className="w-3.5 h-3.5" />Ver evidencia del proveedor
-                          </a>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic bg-muted/30 rounded-lg p-3">El proveedor aún no ha aportado evidencia.</p>
-                    )}
-                  </div>
-                </div>
-
-                {d.estado_disputa === 'pendiente_admin' && (
-                  <div className="border-t pt-4 space-y-3">
-                    <p className="text-sm font-semibold text-foreground">Tu decisión final</p>
-                    <textarea
-                      className="w-full rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/25"
-                      rows={2}
-                      placeholder="Nota de resolución (opcional — se enviará a ambas partes)"
-                      value={notaResolucion}
-                      onChange={e => setNotaResolucion(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" className="gap-1 bg-success hover:bg-success/90" onClick={() => handleResolverDisputa(d.id, 'aprobado')}>
-                        <CheckCircle className="w-4 h-4" />Aprobar trabajo del proveedor
-                      </Button>
-                      <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleResolverDisputa(d.id, 'rechazado')}>
-                        <XCircle className="w-4 h-4" />Rechazar — dar la razón al cliente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+          <TabsContent value="disputas">
+            <DisputasSection
+              disputas={disputas}
+              notaResolucion={notaResolucion}
+              onNotaChange={setNotaResolucion}
+              onResolver={handleResolverDisputa}
+              onActualizar={cargarDisputas}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* DIALOG 1: DETALLE DE USUARIO */}
+      {/* Dialog: Detalle de Usuario */}
       <Dialog open={selectedUser !== null} onOpenChange={open => { if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -644,9 +391,8 @@ const AdminPanel = () => {
                 <div className="flex items-center gap-3 text-sm"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-foreground font-medium">{selectedUser.email}</span></div>
                 <div className="flex items-center gap-3 text-sm"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">{selectedUser.phone}</span></div>
                 <div className="flex items-center gap-3 text-sm"><Calendar className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Registrado: {selectedUser.date}</span></div>
-                <div className="flex items-center gap-3 text-sm"><Eye className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Ciudad: {selectedUser.city}</span></div>
+                <div className="flex items-center gap-3 text-sm"><Star className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Ciudad: {selectedUser.city}</span></div>
               </div>
-              
               {selectedUser.role === "Proveedor" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-card border rounded-lg p-3 text-center">
@@ -665,7 +411,7 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 2: CONFIRMACIÓN DE ELIMINACIÓN */}
+      {/* Dialog: Confirmación de Eliminación */}
       <Dialog open={deleteConfirm !== null} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -679,7 +425,7 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 3: DOCUMENTOS DE VERIFICACIÓN */}
+      {/* Dialog: Documentos de Verificación */}
       <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) { setDocsDialogUser(null); } }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -692,7 +438,6 @@ const AdminPanel = () => {
               <p><strong>Email:</strong> {docsDialogUser?.email}</p>
               <p><strong>Categoría:</strong> {docsDialogUser?.categoria_servicio || "No especificada"}</p>
             </div>
-
             {[
               { label: 'Cédula de Ciudadanía', url: docsDialogUser?.doc_cedula },
               { label: 'RUT', url: docsDialogUser?.doc_rut },
@@ -732,8 +477,23 @@ const AdminPanel = () => {
               </div>
             ))}
           </div>
-          <div className="flex justify-end pt-2">
-            <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
+          <div className="space-y-3 pt-2">
+            <Label className="text-sm font-medium">Nota de rechazo (opcional)</Label>
+            <Textarea
+              placeholder="Indica el motivo del rechazo para notificar al proveedor..."
+              value={notaRechazo}
+              onChange={e => setNotaRechazo(e.target.value)}
+              className="rounded-xl border-border/70 resize-none"
+              rows={3}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
+              {docsDialogUser && (
+                <Button variant="destructive" onClick={() => handleRejectVerification(docsDialogUser.id, notaRechazo || undefined)}>
+                  Rechazar con nota
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
