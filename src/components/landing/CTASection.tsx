@@ -36,7 +36,7 @@ const CTASection = () => {
               <a href="/registro">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto gap-2 rounded-xl bg-white text-primary hover:bg-white/92 font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+                  className="w-full sm:w-auto gap-2 rounded-xl bg-white text-white hover:bg-white/92 font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
                 >
                   Comenzar Ahora
                   <ArrowRight className="size-4" />
