@@ -1,43 +1,54 @@
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 
 const CTASection = () => {
   const { ref, isVisible } = useScrollReveal();
 
   return (
-    <section className="py-24 lg:py-32">
-      <div className="container mx-auto px-6" ref={ref}>
+    <section className="py-16 sm:py-24 lg:py-32">
+      <div className="container mx-auto px-4 sm:px-6" ref={ref}>
         <div
-          className={`relative rounded-3xl bg-primary overflow-hidden p-12 lg:p-20 text-center ${isVisible ? "animate-scale-in" : "opacity-0"}`}
+          className={`relative rounded-2xl sm:rounded-3xl overflow-hidden px-6 py-12 sm:p-12 lg:p-20 text-center bg-hero
+                      shadow-2xl shadow-primary/20 ${isVisible ? "animate-fade-up" : "opacity-0"}`}
+          style={{ animationDelay: "60ms" }}
         >
-          {/* Decorative circles */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary-foreground/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-foreground/5 rounded-full translate-y-1/3 -translate-x-1/3" />
+          <div className="absolute inset-0 bg-dot-grid opacity-10" />
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/6 blur-2xl" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-white/5 blur-2xl" />
 
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 leading-tight">
-              ¿Listo para conectar con tu comunidad?
-            </h2>
-            <p className="text-primary-foreground/80 font-body text-lg mb-8 max-w-lg mx-auto">
-              Únete a miles de usuarios y proveedores que ya confían en LocalService
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <a href="/registro">
-              <Button variant="hero" size="lg" className="gap-2 bg-accent hover:bg-accent/90">
-                Comenzar Ahora
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              </a>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full
+                            bg-white/15 border border-white/20 text-white/90 text-xs font-bold uppercase tracking-widest mb-5 sm:mb-6">
+              <Zap className="size-3.5" />
+              Únete hoy mismo
+            </div>
 
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
+              ¿Listo para conectar<br className="hidden sm:block" />
+              con tu comunidad?
+            </h2>
+            <p className="text-white/70 text-sm sm:text-lg mb-8 sm:mb-10 max-w-lg mx-auto leading-relaxed">
+              Miles de usuarios y proveedores ya confían en LocalService.
+              Regístrate gratis y empieza hoy.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
               <a href="/registro">
-              <Button
-                variant="heroOutline"
-                size="lg"
-                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-              >
-                Soy Proveedor
-              </Button>
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto gap-2 rounded-xl bg-white text-primary hover:bg-white/92 font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+                >
+                  Comenzar Ahora
+                  <ArrowRight className="size-4" />
+                </Button>
+              </a>
+              <a href="/registro">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto rounded-xl border-2 border-white/25 text-white bg-white/8 hover:bg-white/15 font-bold hover:scale-[1.02] transition-all duration-200"
+                >
+                  Ofrecer mis Servicios
+                </Button>
               </a>
             </div>
           </div>
