@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Wrench, ArrowLeft, Mail, CheckCircle, KeyRound, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,7 @@ const ForgotPassword = () => {
     }
   };
 
-  const inputClass = "h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50";
+  const inputClass = "h-11 rounded-xl border-border/70 bg-card placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary/60 via-background to-secondary/40 p-4">
@@ -186,3 +186,4 @@ const ForgotPassword = () => {
 };
 
 export default ForgotPassword;
+
