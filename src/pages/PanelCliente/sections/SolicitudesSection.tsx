@@ -44,7 +44,7 @@ const SolicitudesSection = ({ solicitudes, onAceptarCotizacion, onRechazarCotiza
       </div>
 
       {activas.length === 0 ? (
-        <div className="bg-white border border-border/60 rounded-2xl p-10 text-center">
+        <div className="bg-card border border-border/60 rounded-2xl p-10 text-center">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
             <FileQuestion className="w-6 h-6 text-muted-foreground" />
           </div>
@@ -58,7 +58,7 @@ const SolicitudesSection = ({ solicitudes, onAceptarCotizacion, onRechazarCotiza
             const proveedorNombre = req.proveedor ? `${req.proveedor.nombre} ${req.proveedor.apellido || ""}`.trim() : "Proveedor";
 
             return (
-              <div key={req.id} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
+              <div key={req.id} className="bg-card rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">

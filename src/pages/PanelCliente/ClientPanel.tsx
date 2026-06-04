@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, Clock, History, User, LogOut, Bell, Star, AlertTriangle } from "lucide-react";
+import { Search, Clock, History, User, LogOut, Bell, Star, AlertTriangle, MapPin } from "lucide-react";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -233,30 +234,31 @@ const ClientPanel = () => {
   const nombreCorto = profileData.name ? profileData.name.split(" ")[0] : "Cliente";
   const cotizacionesPendientes = solicitudes.filter(s => s.estado === 'cotizado').length;
 
-  const inputClass = "h-10 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50";
+  const inputClass = "h-10 rounded-xl border-border/70 bg-card placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50";
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-border/60 sticky top-0 z-40 shadow-sm">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border/40 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">LS</span>
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200 ease-in-out shrink-0">
+              <MapPin className="size-4 text-white" />
             </div>
-            <span className="font-bold text-foreground">LocalService</span>
-            <Badge className="text-xs bg-primary/10 text-primary border border-primary/20 font-medium">Cliente</Badge>
+            <span className="font-bold text-foreground tracking-tight hidden xs:inline">Local<span className="text-primary">Service</span></span>
+            <Badge className="text-xs bg-primary/10 text-primary border border-primary/20 font-semibold hidden sm:inline-flex">Cliente</Badge>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             <div className="relative">
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9 rounded-xl hover:bg-muted"
+                className="relative h-9 w-9 rounded-xl hover:bg-muted transition-all duration-200 ease-in-out group"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
               >
-                <Bell className="w-4.5 h-4.5" />
+                <Bell className="size-4 text-slate-400 group-hover:text-primary transition-colors duration-200" />
                 {notifCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
                     {notifCount}
@@ -266,15 +268,15 @@ const ClientPanel = () => {
               <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
 
-            <Avatar className="w-8 h-8 ring-2 ring-primary/20">
+            <Avatar className="w-8 h-8 ring-2 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all duration-200 ease-in-out">
               {profileData.foto_perfil ? <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} /> : null}
               <AvatarFallback className="bg-primary text-white text-xs font-bold">
                 {profileData.name ? profileData.name.split(" ").map(n => n[0]).join("") : "CL"}
               </AvatarFallback>
             </Avatar>
 
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive" asChild>
-              <Link to="/"><LogOut className="w-4 h-4" /></Link>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-200 ease-in-out" asChild>
+              <Link to="/"><LogOut className="size-4" /></Link>
             </Button>
           </div>
         </div>
@@ -288,34 +290,32 @@ const ClientPanel = () => {
         </div>
 
         <Tabs defaultValue="buscar" className="space-y-6">
-          <TabsList className="bg-white border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1 flex-wrap">
-            <TabsTrigger value="buscar" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
-              <Search className="w-3.5 h-3.5" />
-              Buscar
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
+          <TabsList className="bg-card border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1 w-max sm:w-auto min-w-full flex-nowrap">
+            <TabsTrigger value="buscar" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <Search className="size-3.5" />Buscar
             </TabsTrigger>
-            <TabsTrigger value="solicitudes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
-              <Clock className="w-3.5 h-3.5" />
-              Solicitudes
+            <TabsTrigger value="solicitudes" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <Clock className="size-3.5" />Solicitudes
               {cotizacionesPendientes > 0 && (
                 <span className="w-4 h-4 rounded-full bg-warning text-warning-foreground text-[9px] flex items-center justify-center font-bold">
                   {cotizacionesPendientes}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="historial" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
-              <History className="w-3.5 h-3.5" />
-              Historial
+            <TabsTrigger value="historial" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <History className="size-3.5" />Historial
               {serviciosCompletadosPendientes.length > 0 && (
                 <span className="w-4 h-4 rounded-full bg-info text-info-foreground text-[9px] flex items-center justify-center font-bold">
                   {serviciosCompletadosPendientes.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="perfil" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all">
-              <User className="w-3.5 h-3.5" />
-              Perfil
+            <TabsTrigger value="perfil" className="gap-1.5 rounded-xl h-9 px-3 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <User className="size-3.5" />Perfil
             </TabsTrigger>
           </TabsList>
+          </div>
 
           <TabsContent value="buscar">
             <BuscarProveedorSection

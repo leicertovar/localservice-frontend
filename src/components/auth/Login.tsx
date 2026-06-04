@@ -1,97 +1,143 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wrench, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { MapPin, Eye, EyeOff, ArrowRight, Shield, Star, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { obtenerUsuarioActual, iniciarSesion } from '@/services/authService'
-import { useAuth } from '@/context/AuthContext'
+import { obtenerUsuarioActual, iniciarSesion } from "@/services/authService";
+import { useAuth } from "@/context/AuthContext";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+
+const PERKS = [
+  { icon: Shield, label: "Proveedores 100% verificados"     },
+  { icon: Star,   label: "Calificaciones auténticas"        },
+  { icon: Zap,    label: "Cotizaciones en minutos"          },
+  { icon: Users,  label: "Más de 2,800 profesionales"       },
+];
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const { setLoggedIn } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast }      = useToast();
+  const navigate       = useNavigate();
+  const { setLoggedIn } = useAuth();
 
   const manejarInicioSesion = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
     try {
-      const respuesta = await iniciarSesion(email, password)
-      setLoggedIn(true)
-      toast({ title: '¡Bienvenido!', description: 'Inicio de sesión completado de forma exitosa.' })
-      const usuarioActual = respuesta.usuario ?? await obtenerUsuarioActual()
-      const rolObj = usuarioActual.rol
-      const nombreRol = typeof rolObj === 'object' && rolObj !== null ? rolObj.nombre : String(rolObj ?? 'cliente')
-      const nombreRolMinusc = nombreRol.toLowerCase()
-      const rutaRedireccion = nombreRolMinusc.includes('proveedor') ? '/proveedor' : nombreRolMinusc.includes('admin') ? '/admin' : '/cliente'
-      navigate(rutaRedireccion)
+      const respuesta  = await iniciarSesion(email, password);
+      setLoggedIn(true);
+      toast({ title: "¡Bienvenido!", description: "Inicio de sesión completado." });
+      const usuario    = respuesta.usuario ?? await obtenerUsuarioActual();
+      const rolObj     = usuario.rol;
+      const nombreRol  = typeof rolObj === "object" && rolObj !== null ? rolObj.nombre : String(rolObj ?? "cliente");
+      const ruta       = nombreRol.toLowerCase().includes("proveedor") ? "/proveedor"
+                       : nombreRol.toLowerCase().includes("admin")     ? "/admin"
+                       : "/cliente";
+      navigate(ruta);
     } catch (err: any) {
-      const mensajeError = err.response?.data?.mensaje || 'Credenciales de acceso incorrectas.'
-      toast({ title: 'Error de acceso', description: mensajeError, variant: 'destructive' })
+      toast({
+        title: "Error de acceso",
+        description: err.response?.data?.mensaje || "Credenciales incorrectas.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex">
-      {/* Panel izquierdo decorativo */}
-      <div className="hidden lg:flex flex-1 bg-hero items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-white/30" />
-          <div className="absolute bottom-20 right-10 w-48 h-48 rounded-full bg-white/20" />
-          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full bg-white/15" />
-        </div>
-        <div className="max-w-sm text-white relative z-10">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30">
-              <Wrench className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight">LocalService</span>
+
+      {/* ── Left panel ── */}
+      <div className="hidden lg:flex flex-1 bg-hero relative overflow-hidden flex-col justify-between p-12">
+        {/* Dot grid */}
+        <div className="absolute inset-0 bg-dot-grid opacity-10" />
+        {/* Blobs */}
+        <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-white/6 blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-72 h-72 rounded-full bg-white/5 blur-3xl" />
+
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center">
+            <MapPin className="size-5 text-white" />
           </div>
-          <h2 className="text-4xl font-bold mb-4 leading-tight">
+          <span className="text-xl font-bold text-white tracking-tight">LocalService</span>
+        </div>
+
+        {/* Copy */}
+        <div className="relative z-10 max-w-sm">
+          <h2 className="text-4xl font-bold text-white mb-4 leading-[1.1] tracking-tight">
             Conecta con los mejores profesionales de tu zona
           </h2>
-          <p className="text-white/70 text-lg leading-relaxed">
-            Plomería, electricidad, limpieza y más. Todo en un solo lugar, con garantía de calidad.
+          <p className="text-white/65 text-[15px] leading-relaxed mb-8">
+            Plomería, electricidad, carpintería, barbería y mucho más. Profesionales verificados, calificaciones reales.
           </p>
-          <div className="mt-10 flex flex-col gap-3">
-            {["Proveedores verificados", "Solicitudes en minutos", "Pagos seguros"].map(item => (
-              <div key={item} className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-white" />
+          <ul className="space-y-3">
+            {PERKS.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
+                  <Icon className="size-3.5 text-white" />
                 </div>
-                <span className="text-white/80 text-sm">{item}</span>
-              </div>
+                <span className="text-white/80 text-sm">{label}</span>
+              </li>
             ))}
+          </ul>
+        </div>
+
+        {/* Testimonial card */}
+        <div className="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-4 backdrop-blur-sm">
+          <div className="flex gap-0.5 mb-2">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="size-3.5 fill-amber-400 text-amber-400" />
+            ))}
+          </div>
+          <p className="text-white/80 text-sm leading-relaxed mb-3 italic">
+            "Encontré un electricista en menos de 10 minutos. El servicio fue impecable y el precio justo."
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-[11px] font-bold text-white">CG</div>
+            <div>
+              <p className="text-white text-xs font-semibold">Carlos García</p>
+              <p className="text-white/55 text-[11px]">Cliente verificado</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Panel derecho con formulario */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-background">
+      {/* ── Right panel: form ── */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-background relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+
         <div className="w-full max-w-md">
-          {/* Logo móvil */}
-          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-md">
-              <Wrench className="w-5 h-5 text-white" />
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2.5 mb-8">
+            <div className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center shadow-sm">
+              <MapPin className="size-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-foreground">LocalService</span>
+            <span className="font-bold text-xl tracking-tight text-foreground">
+              Local<span className="text-primary">Service</span>
+            </span>
           </div>
 
+          {/* Heading */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-1.5">Iniciar Sesión</h1>
-            <p className="text-muted-foreground">Ingresa tus credenciales para acceder a tu cuenta</p>
+            <h1 className="text-3xl font-bold text-foreground mb-1.5 tracking-tight">Iniciar Sesión</h1>
+            <p className="text-muted-foreground text-[15px]">Ingresa tus credenciales para acceder a tu cuenta</p>
           </div>
 
+          {/* Form */}
           <form onSubmit={manejarInicioSesion} className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium text-foreground">Correo electrónico</Label>
+              <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                Correo electrónico
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -99,14 +145,19 @@ const Login = () => {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className="h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 focus-visible:ring-primary/25 focus-visible:border-primary/50"
+                className="input-enhanced"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium text-foreground">Contraseña</Label>
-                <Link to="/recuperar-contrasena" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                <Label htmlFor="password" className="text-sm font-semibold text-foreground">
+                  Contraseña
+                </Label>
+                <Link
+                  to="/recuperar-contrasena"
+                  className="text-xs text-primary hover:text-primary/75 font-semibold transition-colors"
+                >
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
@@ -118,14 +169,15 @@ const Login = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50 pr-10 focus-visible:ring-primary/25 focus-visible:border-primary/50"
+                  className="input-enhanced pr-10"
                 />
                 <button
                   type="button"
+                  onClick={() => setShowPass(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setShowPass(!showPass)}
+                  aria-label="Mostrar contraseña"
                 >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
@@ -133,22 +185,26 @@ const Login = () => {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 rounded-xl font-semibold text-sm gap-2 shadow-sm"
+              className="w-full h-11 rounded-xl gap-2 text-sm font-bold mt-1"
             >
-              {isLoading ? 'Iniciando sesión...' : (
-                <><span>Iniciar Sesión</span><ArrowRight className="w-4 h-4" /></>
+              {isLoading ? "Iniciando sesión..." : (
+                <>Iniciar Sesión <ArrowRight className="size-4" /></>
               )}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              ¿No tienes cuenta?{' '}
-              <Link to="/registro" className="text-primary font-semibold hover:text-primary/80 transition-colors">
-                Regístrate gratis
-              </Link>
-            </p>
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-border/60" />
+            <span className="text-xs text-muted-foreground font-medium">¿Nuevo aquí?</span>
+            <div className="flex-1 h-px bg-border/60" />
           </div>
+
+          <Link to="/registro">
+            <Button variant="outline" className="w-full h-11 rounded-xl text-sm font-semibold">
+              Crear cuenta gratis
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

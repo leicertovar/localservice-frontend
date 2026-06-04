@@ -35,7 +35,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
           {serviciosCompletadosPendientes.map(sol => {
             const provNombre = sol.proveedor ? `${sol.proveedor.nombre} ${sol.proveedor.apellido || ""}`.trim() : "Proveedor";
             return (
-              <div key={sol.id} className="bg-white rounded-2xl border border-info/30 p-5 shadow-sm">
+              <div key={sol.id} className="bg-card rounded-2xl border border-info/30 p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h4 className="font-semibold text-foreground mb-1">{sol.servicio?.nombre || "Servicio Personalizado"}</h4>
@@ -59,7 +59,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
 
       {/* Historial confirmado */}
       {sinContenido ? (
-        <div className="bg-white border border-border/60 rounded-2xl p-10 text-center">
+        <div className="bg-card border border-border/60 rounded-2xl p-10 text-center">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
             <History className="w-6 h-6 text-muted-foreground" />
           </div>
@@ -72,7 +72,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
           {historial.map(item => {
             const provNombre = item.proveedor ? `${item.proveedor.nombre} ${item.proveedor.apellido || ""}`.trim() : "Proveedor";
             return (
-              <div key={item.id} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
+              <div key={item.id} className="bg-card rounded-2xl border border-border/60 p-5 hover:shadow-sm transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground mb-0.5">{item.servicio?.nombre || "Servicio Personalizado"}</h3>
