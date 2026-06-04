@@ -42,13 +42,13 @@ const PerfilSection = ({ profileData, totalSolicitudes, onOpenEditProfile }: Pro
         <h2 className="text-lg font-bold text-foreground">Mi Perfil</h2>
       </div>
 
-      <div className="bg-white rounded-2xl border border-border/60 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
         {/* Header del perfil */}
         <div className="bg-hero p-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-18 h-18 ring-4 ring-white/30 shadow-lg" style={{ width: 72, height: 72 }}>
               {profileData.foto_perfil && <AvatarImage src={storageUrl(profileData.foto_perfil)} alt={profileData.name} />}
-              <AvatarFallback className="bg-white/20 text-white text-2xl font-bold">
+              <AvatarFallback className="bg-card/20 text-white text-2xl font-bold">
                 {iniciales}
               </AvatarFallback>
             </Avatar>
@@ -56,7 +56,7 @@ const PerfilSection = ({ profileData, totalSolicitudes, onOpenEditProfile }: Pro
               <h3 className="text-xl font-bold leading-tight">{profileData.name || "Cliente"}</h3>
               <p className="text-white/70 text-sm mt-0.5">{profileData.email}</p>
               <div className="flex items-center gap-2 mt-2">
-                <div className="bg-white/20 rounded-full px-2.5 py-0.5 text-xs font-medium text-white">
+                <div className="bg-card/20 rounded-full px-2.5 py-0.5 text-xs font-medium text-white">
                   {totalSolicitudes} solicitud{totalSolicitudes !== 1 ? 'es' : ''}
                 </div>
               </div>

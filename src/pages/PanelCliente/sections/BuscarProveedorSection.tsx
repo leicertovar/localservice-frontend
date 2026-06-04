@@ -57,7 +57,7 @@ const BuscarProveedorSection = ({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar servicio o proveedor..."
-              className="pl-10 h-11 rounded-xl border-border/70 bg-white placeholder:text-muted-foreground/50"
+              className="pl-10 h-11 rounded-xl border-border/70 bg-card placeholder:text-muted-foreground/50"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -74,7 +74,7 @@ const BuscarProveedorSection = ({
         </div>
 
         {filtersOpen && (
-          <div className="bg-white border border-border/60 rounded-2xl p-5 space-y-4 animate-in slide-in-from-top-2 shadow-sm">
+          <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-4 animate-in slide-in-from-top-2 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
                 <Filter className="w-4 h-4 text-primary" />
@@ -96,7 +96,7 @@ const BuscarProveedorSection = ({
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Ej: Buenaventura"
-                    className="pl-8 h-9 text-sm rounded-lg border-border/70 bg-white"
+                    className="pl-8 h-9 text-sm rounded-lg border-border/70 bg-card"
                     value={filterLocation}
                     onChange={e => setFilterLocation(e.target.value)}
                   />
@@ -135,7 +135,7 @@ const BuscarProveedorSection = ({
               variant={selectedCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(cat)}
-              className={`text-xs h-8 rounded-full px-3.5 font-medium ${selectedCategory === cat ? 'shadow-sm' : 'border-border/60 bg-white'}`}
+              className={`text-xs h-8 rounded-full px-3.5 font-medium ${selectedCategory === cat ? 'shadow-sm' : 'border-border/60 bg-card'}`}
             >
               {cat}
             </Button>
@@ -150,7 +150,7 @@ const BuscarProveedorSection = ({
           <p className="text-muted-foreground text-sm">Obteniendo proveedores en la zona...</p>
         </div>
       ) : proveedoresFiltrados.length === 0 ? (
-        <div className="text-center py-16 border border-border/60 rounded-2xl bg-white">
+        <div className="text-center py-16 border border-border/60 rounded-2xl bg-card">
           <Search className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-foreground font-semibold mb-1">No se encontraron proveedores</p>
           <p className="text-sm text-muted-foreground">Intenta con otros filtros o categorías</p>
@@ -158,7 +158,7 @@ const BuscarProveedorSection = ({
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {proveedoresFiltrados.map(provider => (
-            <div key={provider.id} className="bg-white rounded-2xl border border-border/60 p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+            <div key={provider.id} className="bg-card rounded-2xl border border-border/60 p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200">
               <div className="flex items-start gap-3 mb-4">
                 <Avatar className="w-12 h-12 ring-2 ring-background shadow-sm">
                   {provider.foto_perfil && <AvatarImage src={storageUrl(provider.foto_perfil)} alt={provider.name} />}

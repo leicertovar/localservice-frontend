@@ -391,78 +391,78 @@ const ProviderPanel = () => {
 
       {/* Dialog: Editar Perfil */}
       <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Editar Perfil</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Editar Perfil</DialogTitle>
             <DialogDescription>Actualiza tu información de proveedor</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16">
+              <Avatar className="w-16 h-16 ring-2 ring-primary/20">
                 {(fotoFile || editProfile.foto_perfil) ? (
                   <AvatarImage src={fotoFile ? URL.createObjectURL(fotoFile) : storageUrl(editProfile.foto_perfil)} />
                 ) : null}
-                <AvatarFallback className="bg-accent text-accent-foreground text-xl">
+                <AvatarFallback className="bg-primary text-white text-xl font-bold">
                   {editProfile.name ? editProfile.name[0] + (editProfile.apellido ? editProfile.apellido[0] : "") : "PV"}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <Label className="text-xs text-muted-foreground block mb-1">Foto de perfil</Label>
-                <Input type="file" accept="image/*" className="text-xs" onChange={e => setFotoFile(e.target.files?.[0] || null)} />
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground font-medium block mb-1.5">Foto de perfil</Label>
+                <Input type="file" accept="image/*" className="text-xs h-9 rounded-lg" onChange={e => setFotoFile(e.target.files?.[0] || null)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Nombre</Label>
-                <Input value={editProfile.name} onChange={e => setEditProfile({ ...editProfile, name: e.target.value })} />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Nombre</Label>
+                <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.name} onChange={e => setEditProfile({ ...editProfile, name: e.target.value })} />
               </div>
-              <div className="space-y-2">
-                <Label>Apellido</Label>
-                <Input value={editProfile.apellido} onChange={e => setEditProfile({ ...editProfile, apellido: e.target.value })} />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Apellido</Label>
+                <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.apellido} onChange={e => setEditProfile({ ...editProfile, apellido: e.target.value })} />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Categoría de Servicio</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Categoría de Servicio</Label>
               <select
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                className="w-full h-10 rounded-xl border border-border/70 bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/50"
                 value={editProfile.categoria_servicio}
                 onChange={e => setEditProfile({ ...editProfile, categoria_servicio: e.target.value })}
               >
                 {CATEGORIAS_SERVICIO.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={editProfile.email} onChange={e => setEditProfile({ ...editProfile, email: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Email</Label>
+              <Input className="h-10 rounded-xl border-border/70 bg-card" type="email" value={editProfile.email} onChange={e => setEditProfile({ ...editProfile, email: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input value={editProfile.phone} onChange={e => setEditProfile({ ...editProfile, phone: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Teléfono</Label>
+              <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.phone} onChange={e => setEditProfile({ ...editProfile, phone: e.target.value })} />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2 space-y-2">
-                <Label>Ciudad</Label>
-                <Input value={editProfile.ciudad} onChange={e => setEditProfile({ ...editProfile, ciudad: e.target.value })} />
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-sm font-medium">Ciudad</Label>
+                <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.ciudad} onChange={e => setEditProfile({ ...editProfile, ciudad: e.target.value })} />
               </div>
-              <div className="space-y-2">
-                <Label>Exp. (Años)</Label>
-                <Input type="number" value={editProfile.anios_experiencia} onChange={e => setEditProfile({ ...editProfile, anios_experiencia: parseInt(e.target.value) || 0 })} />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Exp. (años)</Label>
+                <Input className="h-10 rounded-xl border-border/70 bg-card" type="number" value={editProfile.anios_experiencia} onChange={e => setEditProfile({ ...editProfile, anios_experiencia: parseInt(e.target.value) || 0 })} />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Precio por Hora</Label>
-              <Input type="number" value={editProfile.precio_por_hora} onChange={e => setEditProfile({ ...editProfile, precio_por_hora: parseFloat(e.target.value) || 0 })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Precio por Hora</Label>
+              <Input className="h-10 rounded-xl border-border/70 bg-card" type="number" value={editProfile.precio_por_hora} onChange={e => setEditProfile({ ...editProfile, precio_por_hora: parseFloat(e.target.value) || 0 })} />
             </div>
-            <div className="border-t pt-3 space-y-2">
-              <Label className="text-sm font-semibold">Horario de Atención por Día</Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border rounded p-3 bg-muted/20">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Horario de Atención</Label>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 border border-border/60 rounded-xl p-3 bg-muted/30">
                 {diasSemana.map(dia => {
                   const horarioActual = normalizarHorario(editProfile.horario_atencion);
                   return (
                     <div key={dia} className="flex items-center gap-3 text-xs">
-                      <span className="font-medium text-foreground w-20">{dia}</span>
+                      <span className="font-medium text-foreground w-20 shrink-0">{dia}</span>
                       <Input
-                        className="h-8 text-xs flex-1"
+                        className="h-8 text-xs flex-1 rounded-lg border-border/60 bg-card"
                         value={horarioActual[dia] || ""}
                         placeholder="Ej: 8:00 AM - 6:00 PM"
                         onChange={e => {
@@ -475,23 +475,23 @@ const ProviderPanel = () => {
                 })}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Habilidades</Label>
-              <Input value={editProfile.habilidades} onChange={e => setEditProfile({ ...editProfile, habilidades: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Habilidades</Label>
+              <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.habilidades} onChange={e => setEditProfile({ ...editProfile, habilidades: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Portfolio</Label>
-              <Input value={editProfile.enlaces_portafolio} onChange={e => setEditProfile({ ...editProfile, enlaces_portafolio: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Portfolio</Label>
+              <Input className="h-10 rounded-xl border-border/70 bg-card" value={editProfile.enlaces_portafolio} onChange={e => setEditProfile({ ...editProfile, enlaces_portafolio: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Biografía</Label>
-              <Textarea value={editProfile.biografia} onChange={e => setEditProfile({ ...editProfile, biografia: e.target.value })} rows={3} />
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Biografía</Label>
+              <Textarea className="rounded-xl border-border/70 resize-none bg-card" value={editProfile.biografia} onChange={e => setEditProfile({ ...editProfile, biografia: e.target.value })} rows={3} />
             </div>
-            <div className="flex gap-2 pt-2">
-              <Button onClick={guardarCambiosPerfil} className="flex-1" disabled={guardandoPerfil}>
+            <div className="flex gap-2 pt-1">
+              <Button onClick={guardarCambiosPerfil} className="flex-1 h-10 rounded-xl font-semibold" disabled={guardandoPerfil}>
                 {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
               </Button>
-              <Button variant="outline" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
+              <Button variant="outline" className="h-10 rounded-xl border-border/60" onClick={() => setEditProfileOpen(false)}>Cancelar</Button>
             </div>
           </div>
         </DialogContent>
