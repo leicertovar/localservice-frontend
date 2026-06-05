@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { storageUrl } from "@/lib/api";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import {
   obtenerUsuariosAdmin,
@@ -452,7 +453,7 @@ const AdminPanel = () => {
                 {url ? (
                   /\.(jpg|jpeg|png|webp)$/i.test(url) ? (
                     <img
-                      src={`http://127.0.0.1:8000${url}`}
+                      src={storageUrl(url)}
                       alt={label}
                       className="w-full rounded-lg border max-h-56 object-contain bg-muted"
                     />
@@ -463,7 +464,7 @@ const AdminPanel = () => {
                         <p className="text-sm font-medium text-foreground">{label} (PDF)</p>
                       </div>
                       <a
-                        href={`http://127.0.0.1:8000${url}`}
+                        href={storageUrl(url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
