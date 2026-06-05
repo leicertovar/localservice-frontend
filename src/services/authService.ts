@@ -157,8 +157,8 @@ export const registrarUsuario = async (
   // Rellenamos el FormData con todos los campos provistos
   Object.entries(datos).forEach(([llave, valor]) => {
     if (valor !== undefined && valor !== null) {
-      if (llave === 'documento' && valor instanceof File) {
-        formData.append('documento', valor)
+      if (valor instanceof File) {
+        formData.append(llave, valor)
       } else {
         formData.append(llave, String(valor))
       }
@@ -244,10 +244,28 @@ export const aprobarProveedorAdmin = async (id: string | number): Promise<void> 
 }
 
 /**
- * Administrador: Rechaza la verificación de un proveedor
+ * Administrador: Rechaza la verificación de un proveedor con nota opcional
  */
-export const rechazarProveedorAdmin = async (id: string | number): Promise<void> => {
-  await api.post(`/auth/admin/rechazar-proveedor/${id}`)
+export const rechazarProveedorAdmin = async (id: string | number, nota?: string): Promise<void> => {
+  await api.post(`/auth/admin/rechazar-proveedor/${id}`, { nota })
+}
+
+/**
+ * Administrador: Obtiene la URL del documento de un proveedor pendiente
+ */
+export const verDocumentoProveedorAdmin = async (id: string | number): Promise<{ url_documento: string; nombre: string; categoria: string }> => {
+  const { data } = await api.get(`/auth/admin/proveedor/${id}/documento`)
+  return data
+}
+
+/**
+ * Actualiza el perfil del cliente autenticado
+ */
+export const actualizarPerfilCliente = async (datos: FormData): Promise<any> => {
+  const { data } = await api.post('/cliente/perfil', datos, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return data
 }
 
 /**

@@ -1,21 +1,31 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, Search, CheckCircle, XCircle, Eye, Trash2, AlertTriangle, FileText, Mail, Phone, Calendar } from "lucide-react";
+import { Users, ShieldCheck, MessageSquare, BarChart3, LogOut, Bell, AlertTriangle, FileText, Mail, Phone, Calendar, Star, MapPin } from "lucide-react";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { storageUrl } from "@/lib/api";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
-import { 
-  obtenerUsuariosAdmin, 
-  eliminarUsuarioAdmin, 
-  aprobarProveedorAdmin, 
-  rechazarProveedorAdmin, 
-  obtenerEstadisticasAdmin 
+import {
+  obtenerUsuariosAdmin,
+  eliminarUsuarioAdmin,
+  aprobarProveedorAdmin,
+  rechazarProveedorAdmin,
+  obtenerEstadisticasAdmin
 } from '@/services/authService'
+import { obtenerResenasReportadas, moderarResena, eliminarResena, type Resena } from '@/services/resenaService'
+import { listarDisputas, resolverDisputa } from '@/services/reservaService'
+import UsuariosSection from "./sections/UsuariosSection";
+import VerificacionSection from "./sections/VerificacionSection";
+import ResenasSection from "./sections/ResenasSection";
+import ReportesSection from "./sections/ReportesSection";
+import DisputasSection from "./sections/DisputasSection";
 
 interface UserData {
   id: string | number;
@@ -30,23 +40,24 @@ interface UserData {
   completedJobs?: number;
   rating?: number;
   servicesRequested?: number;
-  url_documento?: string | null;
+  doc_cedula?: string | null;
+  doc_rut?: string | null;
+  doc_diploma?: string | null;
   categoria_servicio?: string | null;
 }
-
-const flaggedReviews = [
-  { id: 1, reviewer: "Usuario Anónimo", provider: "Carlos Mendoza", rating: 1, comment: "Contenido inapropiado y ofensivo...", date: "2026-04-06", reason: "Lenguaje ofensivo" },
-  { id: 2, reviewer: "Test User", provider: "María López", rating: 1, comment: "Spam repetido sin sentido...", date: "2026-04-07", reason: "Spam" },
-  { id: 3, reviewer: "Bot Account", provider: "Pedro Silva", rating: 5, comment: "Review falsa generada automáticamente", date: "2026-04-08", reason: "Review falsa" },
-];
 
 const AdminPanel = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchUsers, setSearchUsers] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<UserData | null>(null);
   const [docsDialogUser, setDocsDialogUser] = useState<UserData | null>(null);
+  const [notaRechazo, setNotaRechazo] = useState("");
+  const [resenasReportadas, setResenasReportadas] = useState<Resena[]>([]);
+  const [disputas, setDisputas] = useState<any[]>([]);
+  const [notaResolucion, setNotaResolucion] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const [stats, setStats] = useState({
@@ -61,14 +72,10 @@ const AdminPanel = () => {
 
   const { toast } = useToast();
 
-  /**
-   * Mapea el formato relacional del backend de Laravel al formato esperado por la UI del frontend.
-   */
   const mapearUsuario = (u: any): UserData => {
     const esProveedor = u.rol_id === 2;
     const esAdmin = u.rol_id === 3;
     const rolNombre = esProveedor ? "Proveedor" : esAdmin ? "Admin" : "Cliente";
-    
     return {
       id: u.id,
       name: `${u.nombre} ${u.apellido || ''}`.trim(),
@@ -82,21 +89,17 @@ const AdminPanel = () => {
       completedJobs: esProveedor ? (u.perfil_proveedor?.total_resenas || 0) : 0,
       rating: esProveedor ? parseFloat(u.perfil_proveedor?.calificacion || 0) : 0,
       servicesRequested: !esProveedor ? 0 : 0,
-      url_documento: esProveedor ? u.perfil_proveedor?.url_documento : null,
+      doc_cedula:  esProveedor ? u.perfil_proveedor?.doc_cedula  : null,
+      doc_rut:     esProveedor ? u.perfil_proveedor?.doc_rut     : null,
+      doc_diploma: esProveedor ? u.perfil_proveedor?.doc_diploma : null,
       categoria_servicio: esProveedor ? u.perfil_proveedor?.categoria_servicio : null
     };
   };
 
-  /**
-   * Carga todos los usuarios y estadísticas desde la API en español.
-   */
   const cargarDatos = async () => {
     try {
-      // 1. Obtener lista completa de usuarios
       const listaUsuarios = await obtenerUsuariosAdmin();
       setUsers(listaUsuarios.map(mapearUsuario));
-
-      // 2. Obtener estadísticas del backend en tiempo real
       const datosStats = await obtenerEstadisticasAdmin();
       setStats(datosStats);
     } catch (err: any) {
@@ -110,30 +113,51 @@ const AdminPanel = () => {
     }
   };
 
+  const cargarResenasReportadas = async () => {
+    try {
+      const resenas = await obtenerResenasReportadas();
+      setResenasReportadas(resenas);
+    } catch {}
+  };
+
+  const cargarDisputas = async () => {
+    try {
+      const data = await listarDisputas();
+      setDisputas(data);
+    } catch {}
+  };
+
+  const handleResolverDisputa = async (id: number, resolucion: 'aprobado' | 'rechazado') => {
+    try {
+      await resolverDisputa(id, resolucion, notaResolucion || undefined);
+      toast({ title: resolucion === 'aprobado' ? 'Disputa aprobada' : 'Disputa rechazada', description: 'La decisión fue notificada a ambas partes.' });
+      setNotaResolucion("");
+      cargarDisputas();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.response?.data?.mensaje || 'No se pudo resolver la disputa.', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     cargarDatos();
+    cargarResenasReportadas();
+    cargarDisputas();
   }, []);
 
-  // Filtrar los proveedores que tienen verificación pendiente
   const pendingVerifications = users.filter(u => u.role === "Proveedor" && !u.verified);
-
-  // Filtrar los usuarios según el campo de búsqueda
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchUsers.toLowerCase()) ||
     u.email.toLowerCase().includes(searchUsers.toLowerCase())
   );
 
-  /**
-   * Administrador: Confirma y elimina definitivamente a un usuario del sistema.
-   */
   const handleDeleteUser = async () => {
     if (!deleteConfirm) return;
     try {
       await eliminarUsuarioAdmin(deleteConfirm.id);
-      toast({ 
-        title: "Usuario eliminado", 
-        description: `${deleteConfirm.name} ha sido eliminado de forma definitiva del sistema.`, 
-        variant: "destructive" 
+      toast({
+        title: "Usuario eliminado",
+        description: `${deleteConfirm.name} ha sido eliminado de forma definitiva del sistema.`,
+        variant: "destructive"
       });
       setDeleteConfirm(null);
       await cargarDatos();
@@ -146,15 +170,12 @@ const AdminPanel = () => {
     }
   };
 
-  /**
-   * Administrador: Aprueba a un proveedor, activando su estatus y notificándolo.
-   */
   const handleVerify = async (userId: string | number) => {
     try {
       await aprobarProveedorAdmin(userId);
-      toast({ 
-        title: "Proveedor verificado exitosamente", 
-        description: "La cuenta ha sido habilitada y se ha enviado la notificación por correo SMTP." 
+      toast({
+        title: "Proveedor verificado exitosamente",
+        description: "La cuenta ha sido habilitada y se ha enviado la notificación por correo SMTP."
       });
       await cargarDatos();
     } catch (err: any) {
@@ -166,17 +187,16 @@ const AdminPanel = () => {
     }
   };
 
-  /**
-   * Administrador: Rechaza a un proveedor eliminando su solicitud de la plataforma.
-   */
-  const handleRejectVerification = async (userId: string | number) => {
+  const handleRejectVerification = async (userId: string | number, nota?: string) => {
     try {
-      await rechazarProveedorAdmin(userId);
-      toast({ 
-        title: "Verificación rechazada", 
-        description: "La solicitud ha sido rechazada y la cuenta ha sido cancelada.", 
-        variant: "destructive" 
+      await rechazarProveedorAdmin(userId, nota);
+      toast({
+        title: "Verificación rechazada",
+        description: "La solicitud ha sido rechazada y el proveedor fue notificado por correo.",
+        variant: "destructive"
       });
+      setDocsDialogUser(null);
+      setNotaRechazo("");
       await cargarDatos();
     } catch (err: any) {
       toast({
@@ -184,6 +204,27 @@ const AdminPanel = () => {
         description: err.response?.data?.mensaje || "No se pudo completar la operación.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleModerarResena = async (id: number, accion: 'ocultar' | 'restaurar') => {
+    try {
+      await moderarResena(id, accion);
+      toast({ title: accion === 'ocultar' ? 'Reseña ocultada' : 'Reseña conservada' });
+      cargarResenasReportadas();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo moderar la reseña.", variant: "destructive" });
+    }
+  };
+
+  const handleEliminarResena = async (id: number) => {
+    if (!confirm("¿Eliminar esta reseña definitivamente? Esta acción no se puede deshacer.")) return;
+    try {
+      await eliminarResena(id);
+      toast({ title: "Reseña eliminada", description: "La reseña fue eliminada y la calificación del proveedor recalculada." });
+      cargarResenasReportadas();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.response?.data?.mensaje || "No se pudo eliminar la reseña.", variant: "destructive" });
     }
   };
 
@@ -200,245 +241,134 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b sticky top-0 z-40">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border/40 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
-              <span className="text-background font-bold text-sm">LS</span>
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200 ease-in-out shrink-0">
+              <MapPin className="size-4 text-white" />
             </div>
-            <span className="font-bold text-foreground">LocalService</span>
-            <Badge className="text-xs bg-destructive/10 text-destructive border-destructive/20">Admin</Badge>
+            <span className="font-bold text-foreground tracking-tight hidden xs:inline">Local<span className="text-primary">Service</span></span>
+            <Badge className="text-xs bg-destructive/10 text-destructive border border-destructive/20 font-semibold hidden sm:inline-flex">Admin</Badge>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
             <div className="relative">
-              <Button variant="ghost" size="icon" className="relative" onClick={() => setNotificationsOpen(!notificationsOpen)}>
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-                  {pendingVerifications.length}
-                </span>
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-xl hover:bg-muted transition-all duration-200 ease-in-out group" onClick={() => setNotificationsOpen(!notificationsOpen)}>
+                <Bell className="size-4 text-slate-400 group-hover:text-primary transition-colors duration-200" />
+                {(notifCount > 0 || pendingVerifications.length > 0) && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
+                    {notifCount || pendingVerifications.length}
+                  </span>
+                )}
               </Button>
-              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+              <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onCountChange={setNotifCount} />
             </div>
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-foreground text-background text-xs">AD</AvatarFallback>
+            <Avatar className="w-8 h-8 ring-2 ring-destructive/20">
+              <AvatarFallback className="bg-destructive text-white text-xs font-bold">AD</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/"><LogOut className="w-4 h-4" /></Link>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-200 ease-in-out" asChild>
+              <Link to="/"><LogOut className="size-4" /></Link>
             </Button>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8 animate-in fade-in duration-300">
-        
-        {/* Fila superior de Tarjetas de Estadísticas Reales */}
+        {/* Tarjetas de estadísticas */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Usuarios", value: stats.total_usuarios.toString(), icon: Users, color: "text-primary" },
-            { label: "Proveedores Verificados", value: stats.proveedores_verificados.toString(), icon: ShieldCheck, color: "text-success" },
-            { label: "Verificación Pendiente", value: stats.verificaciones_pendientes.toString(), icon: AlertTriangle, color: "text-warning" },
-            { label: "Reseñas Reportadas", value: stats.resenas_reportadas.toString(), icon: MessageSquare, color: "text-destructive" },
+            { label: "Total Usuarios", value: stats.total_usuarios.toString(), icon: Users, color: "text-primary", bg: "bg-primary/10" },
+            { label: "Proveedores Verificados", value: stats.proveedores_verificados.toString(), icon: ShieldCheck, color: "text-success", bg: "bg-success/10 border-success/20" },
+            { label: "Verificación Pendiente", value: stats.verificaciones_pendientes.toString(), icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10 border-warning/20" },
+            { label: "Reseñas Reportadas", value: stats.resenas_reportadas.toString(), icon: MessageSquare, color: "text-destructive", bg: "bg-destructive/10 border-destructive/20" },
           ].map(stat => (
-            <div key={stat.label} className="bg-card rounded-xl border p-5 hover:shadow-sm transition-shadow">
-              <stat.icon className={`w-5 h-5 ${stat.color} mb-2`} />
+            <div key={stat.label} className="bg-card rounded-2xl border border-border/60 p-5 hover:shadow-md hover:border-border/80 transition-all duration-200 ease-in-out">
+              <div className={`w-9 h-9 rounded-xl border ${stat.bg} flex items-center justify-center mb-3`}>
+                <stat.icon className={`size-4 ${stat.color}`} />
+              </div>
               <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </div>
           ))}
         </div>
 
         <Tabs defaultValue="usuarios" className="space-y-6">
-          <TabsList className="bg-muted">
-            <TabsTrigger value="usuarios" className="gap-2"><Users className="w-4 h-4" />Usuarios</TabsTrigger>
-            <TabsTrigger value="verificacion" className="gap-2">
-              <ShieldCheck className="w-4 h-4" />
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
+          <TabsList className="bg-card border border-border/60 p-1 rounded-2xl shadow-sm h-auto gap-1 w-max sm:w-auto min-w-full flex-nowrap">
+            <TabsTrigger value="usuarios" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <Users className="size-3.5" />Usuarios
+            </TabsTrigger>
+            <TabsTrigger value="verificacion" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <ShieldCheck className="size-3.5" />
               Verificación
               {pendingVerifications.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-warning text-warning-foreground text-[10px] font-bold">
+                <span className="w-4 h-4 rounded-full bg-warning text-warning-foreground text-[9px] flex items-center justify-center font-bold">
                   {pendingVerifications.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="resenas" className="gap-2"><MessageSquare className="w-4 h-4" />Reseñas</TabsTrigger>
-            <TabsTrigger value="reportes" className="gap-2"><BarChart3 className="w-4 h-4" />Reportes</TabsTrigger>
+            <TabsTrigger value="resenas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <MessageSquare className="size-3.5" />Reseñas
+            </TabsTrigger>
+            <TabsTrigger value="reportes" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <BarChart3 className="size-3.5" />Reportes
+            </TabsTrigger>
+            <TabsTrigger value="disputas" className="gap-2 rounded-xl h-9 px-4 text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200 ease-in-out">
+              <AlertTriangle className="size-3.5" />Disputas
+              {disputas.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold ml-1">
+                  {disputas.length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
+          </div>
 
-          {/* TAB 1: GESTIÓN DE USUARIOS REAL */}
-          <TabsContent value="usuarios" className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-semibold text-foreground">Gestión de Usuarios</h2>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nombre o correo..." className="pl-10" value={searchUsers} onChange={e => setSearchUsers(e.target.value)} />
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Usuario</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Rol</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Estado</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Registro</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map(u => (
-                      <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-xs bg-muted font-bold text-foreground">
-                                {u.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{u.name}</p>
-                              <p className="text-xs text-muted-foreground">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3"><Badge variant="secondary" className="text-xs">{u.role}</Badge></td>
-                        <td className="px-4 py-3">
-                          <Badge className={`text-xs ${u.status === "Activo" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{u.status}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{u.date}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedUser(u)}><Eye className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(u)}><Trash2 className="w-4 h-4" /></Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredUsers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
-                          No se encontraron usuarios registrados
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <TabsContent value="usuarios">
+            <UsuariosSection
+              filteredUsers={filteredUsers}
+              searchUsers={searchUsers}
+              onSearchChange={setSearchUsers}
+              onViewUser={setSelectedUser}
+              onDeleteUser={setDeleteConfirm}
+            />
           </TabsContent>
 
-          {/* TAB 2: VERIFICACIÓN DE PROVEEDORES REAL */}
-          <TabsContent value="verificacion" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Verificación de Proveedores</h2>
-            {pendingVerifications.length === 0 ? (
-              <div className="bg-card rounded-xl border p-8 text-center">
-                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
-                <p className="text-foreground font-medium text-lg">¡Todo al día!</p>
-                <p className="text-sm text-muted-foreground mt-1">No hay solicitudes de proveedores pendientes de verificación comercial.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {pendingVerifications.map(p => (
-                  <div key={p.id} className="bg-card rounded-xl border p-5 hover:shadow-sm transition-shadow">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className="bg-warning/10 text-warning font-bold text-lg">
-                            {p.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-foreground">{p.name}</h3>
-                            <Badge variant="outline" className="text-[10px]">{p.categoria_servicio || "Proveedor"}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{p.email}</p>
-                          <p className="text-xs text-muted-foreground">Registrado: {p.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setDocsDialogUser(p)}><Eye className="w-4 h-4" />Ver documento</Button>
-                        <Button size="sm" className="gap-1 bg-success hover:bg-success/90" onClick={() => handleVerify(p.id)}><CheckCircle className="w-4 h-4" />Aprobar</Button>
-                        <Button size="sm" variant="outline" className="gap-1 text-destructive hover:bg-destructive/10" onClick={() => handleRejectVerification(p.id)}><XCircle className="w-4 h-4" />Rechazar</Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <TabsContent value="verificacion">
+            <VerificacionSection
+              pendingVerifications={pendingVerifications}
+              onVerify={handleVerify}
+              onReject={handleRejectVerification}
+              onViewDocs={setDocsDialogUser}
+            />
           </TabsContent>
 
-          {/* TAB 3: MODERACIÓN DE RESEÑAS */}
-          <TabsContent value="resenas" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Moderación de Reseñas</h2>
-            {flaggedReviews.map(r => (
-              <div key={r.id} className="bg-card rounded-xl border p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground text-sm">{r.reviewer}</h3>
-                      <span className="text-xs text-muted-foreground">→ {r.provider}</span>
-                    </div>
-                    <Badge className="text-xs bg-destructive/10 text-destructive mb-2">{r.reason}</Badge>
-                    <p className="text-sm text-muted-foreground">{r.comment}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{r.date}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => toast({ title: "Reseña conservada", description: "La reseña ha sido marcada como válida." })}>Conservar</Button>
-                  <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => toast({ title: "Reseña eliminada", description: "La reseña ha sido eliminada del sistema.", variant: "destructive" })}>
-                    <Trash2 className="w-3 h-3" />Eliminar
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <TabsContent value="resenas">
+            <ResenasSection
+              resenasReportadas={resenasReportadas}
+              onModerar={handleModerarResena}
+              onEliminar={handleEliminarResena}
+              onActualizar={cargarResenasReportadas}
+            />
           </TabsContent>
 
-          {/* TAB 4: REPORTES Y ESTADÍSTICAS REALES */}
-          <TabsContent value="reportes" className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Reportes y Estadísticas</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-card rounded-xl border p-6 space-y-5">
-                <h3 className="font-semibold text-foreground">Usuarios por Rol</h3>
-                <div className="space-y-4">
-                  {[
-                    { label: "Clientes", value: stats.clientes_count, total: stats.total_usuarios, color: "bg-primary" },
-                    { label: "Proveedores", value: stats.proveedores_count, total: stats.total_usuarios, color: "bg-amber-500" },
-                  ].map(item => (
-                    <div key={item.label}>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="text-foreground font-medium">{item.label}</span>
-                        <span className="text-muted-foreground">{item.value} ({item.total > 0 ? Math.round((item.value / item.total) * 100) : 0}%)</span>
-                      </div>
-                      <div className="h-3 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${item.color} rounded-full transition-all duration-500`} 
-                          style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }} 
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-card rounded-xl border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Categorías con Proveedores</h3>
-                <div className="space-y-3">
-                  {stats.categorias.map((s, i) => (
-                    <div key={s.categoria_servicio} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                      <span className="text-sm text-foreground font-medium">{i + 1}. {s.categoria_servicio}</span>
-                      <span className="text-sm font-semibold text-muted-foreground">{s.total} proveedor{s.total !== 1 ? 'es' : ''}</span>
-                    </div>
-                  ))}
-                  {stats.categorias.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">No hay proveedores registrados todavía.</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          <TabsContent value="reportes">
+            <ReportesSection stats={stats} />
+          </TabsContent>
+
+          <TabsContent value="disputas">
+            <DisputasSection
+              disputas={disputas}
+              notaResolucion={notaResolucion}
+              onNotaChange={setNotaResolucion}
+              onResolver={handleResolverDisputa}
+              onActualizar={cargarDisputas}
+            />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* DIALOG 1: DETALLE DE USUARIO */}
+      {/* Dialog: Detalle de Usuario */}
       <Dialog open={selectedUser !== null} onOpenChange={open => { if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -466,9 +396,8 @@ const AdminPanel = () => {
                 <div className="flex items-center gap-3 text-sm"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-foreground font-medium">{selectedUser.email}</span></div>
                 <div className="flex items-center gap-3 text-sm"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">{selectedUser.phone}</span></div>
                 <div className="flex items-center gap-3 text-sm"><Calendar className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Registrado: {selectedUser.date}</span></div>
-                <div className="flex items-center gap-3 text-sm"><Eye className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Ciudad: {selectedUser.city}</span></div>
+                <div className="flex items-center gap-3 text-sm"><Star className="w-4 h-4 text-muted-foreground" /><span className="text-foreground">Ciudad: {selectedUser.city}</span></div>
               </div>
-              
               {selectedUser.role === "Proveedor" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-card border rounded-lg p-3 text-center">
@@ -487,7 +416,7 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 2: CONFIRMACIÓN DE ELIMINACIÓN */}
+      {/* Dialog: Confirmación de Eliminación */}
       <Dialog open={deleteConfirm !== null} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -501,47 +430,75 @@ const AdminPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG 3: DOCUMENTOS REALES DE VERIFICACIÓN */}
-      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) setDocsDialogUser(null); }}>
-        <DialogContent className="sm:max-w-md">
+      {/* Dialog: Documentos de Verificación */}
+      <Dialog open={docsDialogUser !== null} onOpenChange={open => { if (!open) { setDocsDialogUser(null); } }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Documentos del Proveedor</DialogTitle>
-            <DialogDescription>Revisa el documento de identidad / RUT / Certificado cargado por el proveedor</DialogDescription>
+            <DialogDescription>Revisa los documentos cargados por {docsDialogUser?.name}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {docsDialogUser?.url_documento ? (
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Documento de Soporte</p>
-                    <p className="text-xs text-muted-foreground">Archivo de validación de identidad</p>
+            <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+              <p><strong>Proveedor:</strong> {docsDialogUser?.name}</p>
+              <p><strong>Email:</strong> {docsDialogUser?.email}</p>
+              <p><strong>Categoría:</strong> {docsDialogUser?.categoria_servicio || "No especificada"}</p>
+            </div>
+            {[
+              { label: 'Cédula de Ciudadanía', url: docsDialogUser?.doc_cedula },
+              { label: 'RUT', url: docsDialogUser?.doc_rut },
+              { label: 'Diploma / Certificado', url: docsDialogUser?.doc_diploma },
+            ].map(({ label, url }) => (
+              <div key={label} className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+                {url ? (
+                  /\.(jpg|jpeg|png|webp)$/i.test(url) ? (
+                    <img
+                      src={storageUrl(url)}
+                      alt={label}
+                      className="w-full rounded-lg border max-h-56 object-contain bg-muted"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-primary" />
+                        <p className="text-sm font-medium text-foreground">{label} (PDF)</p>
+                      </div>
+                      <a
+                        href={storageUrl(url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
+                      >
+                        Abrir ↗
+                      </a>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
+                    <AlertTriangle className="w-4 h-4" />
+                    <p className="text-xs font-medium">No cargado</p>
                   </div>
-                </div>
-                <a 
-                  href={`http://127.0.0.1:8000${docsDialogUser.url_documento}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-md hover:bg-primary/90 transition-colors"
-                >
-                  Abrir documento ↗
-                </a>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
-                <AlertTriangle className="w-5 h-5" />
-                <p className="text-xs font-medium">El proveedor no cargó ningún archivo de soporte en su registro.</p>
-              </div>
-            )}
+            ))}
           </div>
-          <div className="flex gap-2 pt-2">
-            <Button 
-              className="flex-1 bg-success hover:bg-success/90" 
-              onClick={() => { if (docsDialogUser) handleVerify(docsDialogUser.id); setDocsDialogUser(null); }}
-            >
-              Aprobar proveedor
-            </Button>
-            <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
+          <div className="space-y-3 pt-2">
+            <Label className="text-sm font-medium">Nota de rechazo (opcional)</Label>
+            <Textarea
+              placeholder="Indica el motivo del rechazo para notificar al proveedor..."
+              value={notaRechazo}
+              onChange={e => setNotaRechazo(e.target.value)}
+              className="rounded-xl border-border/70 resize-none"
+              rows={3}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDocsDialogUser(null)}>Cerrar</Button>
+              {docsDialogUser && (
+                <Button variant="destructive" onClick={() => handleRejectVerification(docsDialogUser.id, notaRechazo || undefined)}>
+                  Rechazar con nota
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
