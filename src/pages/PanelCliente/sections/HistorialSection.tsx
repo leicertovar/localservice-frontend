@@ -2,7 +2,7 @@ import { Clock, Star, Download, FileText, CheckCircle2, History } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SolicitudServicioDatos } from "@/services/reservaService";
-import { useToast } from "@/hooks/use-toast";
+import { descargarFacturaPDF } from "@/lib/facturaUtils";
 
 interface Props {
   historial: SolicitudServicioDatos[];
@@ -12,7 +12,6 @@ interface Props {
 }
 
 const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenReview, onOpenConfirm }: Props) => {
-  const { toast } = useToast();
   const sinContenido = historial.length === 0 && serviciosCompletadosPendientes.length === 0;
 
   return (
@@ -112,7 +111,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
                       variant="outline"
                       size="sm"
                       className="h-8 rounded-lg gap-1.5 text-xs border-border/60"
-                      onClick={() => toast({ title: "Factura", description: "La factura se descargará próximamente." })}
+                      onClick={() => descargarFacturaPDF(item)}
                     >
                       <Download className="w-3 h-3" />
                       Factura
