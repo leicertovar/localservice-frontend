@@ -21,6 +21,7 @@ import {
 } from '@/services/authService'
 import { obtenerResenasReportadas, moderarResena, eliminarResena, type Resena } from '@/services/resenaService'
 import { listarDisputas, resolverDisputa } from '@/services/reservaService'
+import { obtenerNotificaciones } from '@/services/notificacionService'
 import UsuariosSection from "./sections/UsuariosSection";
 import VerificacionSection from "./sections/VerificacionSection";
 import ResenasSection from "./sections/ResenasSection";
@@ -142,6 +143,12 @@ const AdminPanel = () => {
     cargarDatos();
     cargarResenasReportadas();
     cargarDisputas();
+    // Carga inicial del conteo de notificaciones sin abrir el panel
+    obtenerNotificaciones().then(res => setNotifCount(res.no_leidas)).catch(() => {});
+    const intervalo = setInterval(() => {
+      obtenerNotificaciones().then(res => setNotifCount(res.no_leidas)).catch(() => {});
+    }, 30000);
+    return () => clearInterval(intervalo);
   }, []);
 
   const pendingVerifications = users.filter(u => u.role === "Proveedor" && !u.verified);
@@ -255,9 +262,9 @@ const AdminPanel = () => {
             <div className="relative">
               <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-xl hover:bg-muted transition-all duration-200 ease-in-out group" onClick={() => setNotificationsOpen(!notificationsOpen)}>
                 <Bell className="size-4 text-slate-400 group-hover:text-primary transition-colors duration-200" />
-                {(notifCount > 0 || pendingVerifications.length > 0) && (
+                {notifCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-white text-[9px] flex items-center justify-center font-bold">
-                    {notifCount || pendingVerifications.length}
+                    {notifCount}
                   </span>
                 )}
               </Button>

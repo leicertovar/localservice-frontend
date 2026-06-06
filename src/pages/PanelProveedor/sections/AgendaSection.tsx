@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Clock, Calendar, MessageCircle, CheckCircle2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SolicitudServicioDatos } from "@/services/reservaService";
@@ -123,60 +123,112 @@ const AgendaSection = ({ solicitudes, onCompletar, onAbrirChat }: Props) => {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h4 className="font-semibold text-foreground text-sm">
-            {diaSeleccionado
-              ? `Servicios del ${diaSeleccionado} de ${MESES[mesCalendario]}`
-              : "Próximos servicios programados"}
-          </h4>
-          <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-foreground text-sm">
+              {diaSeleccionado
+                ? `${diaSeleccionado} de ${MESES[mesCalendario]}`
+                : "Próximos servicios"}
+            </h4>
+            {serviciosFiltrados.length > 0 && (
+              <Badge className="text-[10px] bg-primary/10 text-primary border border-primary/20">
+                {serviciosFiltrados.length}
+              </Badge>
+            )}
+          </div>
+
+          <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-0.5">
             {serviciosFiltrados.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg">
-                No hay citas {diaSeleccionado ? "ese día" : "en este mes"}.
-              </p>
+              <div className="flex flex-col items-center justify-center py-8 bg-muted/20 rounded-xl border border-dashed border-border/60">
+                <Calendar className="w-7 h-7 text-muted-foreground/50 mb-2" />
+                <p className="text-xs text-muted-foreground font-medium">
+                  Sin servicios {diaSeleccionado ? "ese día" : "programados"}
+                </p>
+              </div>
             ) : (
-              serviciosFiltrados.map(sol => (
-                <div key={sol.id} className="p-3 bg-muted/40 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-foreground">{sol.servicio?.nombre || "Servicio Personalizado"}</p>
-                    <Badge className="text-[10px] bg-success/15 text-success">Confirmado</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Cliente: {sol.cliente?.nombre} {sol.cliente?.apellido}</p>
-                  <p className="text-xs text-muted-foreground">{sol.fecha} a las {sol.hora}</p>
-                  <p className="text-xs text-muted-foreground">{sol.direccion}</p>
-                  <div className="flex gap-1 justify-end">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() =>
-                        sol.cliente &&
-                        onAbrirChat(`${sol.cliente.nombre} ${sol.cliente.apellido || ""}`, sol.cliente.id)
-                      }
-                    >
-                      Chat
-                    </Button>
-                    {(() => {
-                      const hoy = new Date().toISOString().split("T")[0];
-                      const puedCompletar = !sol.fecha || hoy >= sol.fecha;
-                      return puedCompletar ? (
+              serviciosFiltrados.map(sol => {
+                const hoyStr = new Date().toISOString().split("T")[0];
+                const puedCompletar = !sol.fecha || hoyStr >= sol.fecha;
+                const clienteNombre = sol.cliente
+                  ? `${sol.cliente.nombre} ${sol.cliente.apellido || ""}`.trim()
+                  : "Cliente";
+                const fechaFormato = sol.fecha
+                  ? new Date(sol.fecha + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "short" })
+                  : "";
+
+                return (
+                  <div key={sol.id} className="bg-card border border-border/60 rounded-xl p-3.5 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-200">
+                    {/* Cabecera */}
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <MapPin className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {sol.servicio?.nombre || "Servicio Personalizado"}
+                        </p>
+                      </div>
+                      <Badge className="text-[10px] bg-success/10 text-success border border-success/20 shrink-0">
+                        <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                        Confirmado
+                      </Badge>
+                    </div>
+
+                    {/* Detalles */}
+                    <div className="space-y-1.5 mb-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <User className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{clienteNombre}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        <span>{fechaFormato}{sol.hora ? ` · ${sol.hora}` : ""}</span>
+                      </div>
+                      {sol.direccion && (
+                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{sol.direccion}</span>
+                        </div>
+                      )}
+                      {sol.monto_cotizado && (
+                        <p className="text-xs font-semibold text-success">{sol.monto_cotizado}</p>
+                      )}
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="flex gap-1.5 pt-2 border-t border-border/40">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-7 text-xs gap-1 border-border/60"
+                        onClick={() =>
+                          sol.cliente &&
+                          onAbrirChat(`${sol.cliente.nombre} ${sol.cliente.apellido || ""}`, sol.cliente.id)
+                        }
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        Chat
+                      </Button>
+                      {puedCompletar ? (
                         <Button
-                          size="xs"
-                          variant="default"
-                          className="h-7 text-xs bg-success hover:bg-success/90"
+                          size="sm"
+                          className="flex-1 h-7 text-xs gap-1 bg-success hover:bg-success/90 text-white"
                           onClick={() => sol.id && onCompletar(sol.id)}
                         >
+                          <CheckCircle2 className="w-3 h-3" />
                           Completar
                         </Button>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground">
-                          Desde {new Date(sol.fecha + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
-                        </span>
-                      );
-                    })()}
+                        <div className="flex-1 flex items-center justify-center">
+                          <span className="text-[10px] text-muted-foreground">
+                            Disponible desde {new Date(sol.fecha + "T00:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
