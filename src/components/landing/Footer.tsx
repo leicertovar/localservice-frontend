@@ -20,11 +20,11 @@ const Footer = () => {
               Plataforma que conecta usuarios con proveedores de servicios locales verificados, de forma rápida y segura.
             </p>
             <a
-              href="mailto:soporte@localservice.co"
+              href="mailto:admin@localservice.com"
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               <Mail className="size-4" />
-              soporte@localservice.co
+              admin@localservice.com
             </a>
           </div>
 
@@ -66,7 +66,7 @@ const Footer = () => {
           <div>
             <h4 className="font-bold text-foreground mb-5 text-sm tracking-tight">Contacto</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li>soporte@localservice.co</li>
+              <li>admin@localservice.com</li>
               <li className="font-medium text-foreground">Universidad del Valle</li>
               <li>Seccional Pacífico</li>
               <li className="pt-2">
