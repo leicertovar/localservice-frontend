@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, Eye, EyeOff, ArrowRight, Shield, Star, Users, Zap } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Shield, Star, Users, Zap } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,11 +63,8 @@ const Login = () => {
         <div className="absolute bottom-0 right-0 w-72 h-72 rounded-full bg-white/5 blur-3xl" />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center">
-            <MapPin className="size-5 text-white" />
-          </div>
-          <span className="text-xl font-bold text-white tracking-tight">LocalService</span>
+        <div className="relative z-10">
+          <Logo tone="blanco" className="h-10" />
         </div>
 
         {/* Copy */}
@@ -117,13 +115,8 @@ const Login = () => {
 
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2.5 mb-8">
-            <div className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center shadow-sm">
-              <MapPin className="size-5 text-white" />
-            </div>
-            <span className="font-bold text-xl tracking-tight text-foreground">
-              Local<span className="text-primary">Service</span>
-            </span>
+          <div className="lg:hidden flex mb-8">
+            <Logo className="h-9" />
           </div>
 
           {/* Heading */}

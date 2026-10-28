@@ -1,4 +1,5 @@
-import { MapPin, Mail, ExternalLink } from "lucide-react";
+import { Mail, ExternalLink } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 
 const Footer = () => {
   return (
@@ -8,13 +9,8 @@ const Footer = () => {
 
           {/* Brand */}
           <div className="col-span-2 sm:col-span-2 lg:col-span-1">
-            <a href="/" className="inline-flex items-center gap-2.5 mb-5 group">
-              <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
-                <MapPin className="size-4 text-white" />
-              </div>
-              <span className="font-bold text-lg tracking-tight text-foreground">
-                Local<span className="text-primary">Service</span>
-              </span>
+            <a href="/" className="inline-flex items-center mb-5 hover:opacity-85 transition-opacity duration-200">
+              <Logo className="h-8" />
             </a>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-5">
               Plataforma que conecta usuarios con proveedores de servicios locales verificados, de forma rápida y segura.

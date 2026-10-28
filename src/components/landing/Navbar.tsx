@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MapPin } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 const NAV_LINKS = [
@@ -18,13 +19,8 @@ const Navbar = () => {
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
-            <MapPin className="size-4 text-white" />
-          </div>
-          <span className="font-display font-bold text-lg tracking-tight text-foreground">
-            Local<span className="text-primary">Service</span>
-          </span>
+        <a href="/" className="flex items-center shrink-0 hover:opacity-85 transition-opacity duration-200">
+          <Logo className="h-8" />
         </a>
 
         {/* Desktop links */}

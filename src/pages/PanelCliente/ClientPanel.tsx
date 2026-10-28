@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, Clock, History, User, LogOut, Bell, Star, AlertTriangle, MapPin } from "lucide-react";
+import { Search, Clock, History, User, LogOut, Bell, Star, AlertTriangle } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -241,11 +242,9 @@ const ClientPanel = () => {
       {/* Header */}
       <header className="bg-card/80 backdrop-blur-md border-b border-border/40 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200 ease-in-out shrink-0">
-              <MapPin className="size-4 text-white" />
-            </div>
-            <span className="font-bold text-foreground tracking-tight hidden xs:inline">Local<span className="text-primary">Service</span></span>
+          <Link to="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity duration-200">
+            <span className="flex xs:hidden"><Logo variant="isotipo" className="h-6" /></span>
+            <span className="hidden xs:flex"><Logo className="h-7" /></span>
             <Badge className="text-xs bg-primary/10 text-primary border border-primary/20 font-semibold hidden sm:inline-flex">Cliente</Badge>
           </Link>
 
