@@ -3,6 +3,17 @@
 El frontend de LocalService es una aplicación moderna desarrollada con **React**, **TypeScript** y **Vite**.
 Su objetivo principal es proporcionar una experiencia de usuario fluida para la conexión entre clientes y proveedores de servicios locales.
 
+## Enlaces del Proyecto
+
+- Tablero de Jira: [Tablero Jira](https://servicioslocales.atlassian.net/jira/software/projects/SCRUM/boards/1?atlOrigin=eyJpIjoiM2ZiYzBkMDFlOTNiNDY1NWEwMGExZWMzY2Y1NjBlZDIiLCJwIjoiaiJ9)  
+- Página web desplegada: [LocalService](http://localservice.ds2.eleueleo.com)  
+
+## Integrantes del Grupo
+
+- Leicer Tovar chiripua 2279391 
+- Isabel Sofía montaño Riascos 2366347 
+- Wuendi Nayelhi Rodríguez plaza 2366710
+
 ## 🚀 Características Principales
 
 *   **Autenticación Dual**: Maneja el registro e inicio de sesión tanto para **Clientes** como para **Proveedores**.
