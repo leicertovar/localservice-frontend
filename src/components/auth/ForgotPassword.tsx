@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { Wrench, ArrowLeft, Mail, CheckCircle, KeyRound, ArrowRight } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle, KeyRound, ArrowRight } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,11 +68,8 @@ const ForgotPassword = () => {
 
         {/* Logo */}
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2.5 mb-6">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-md">
-              <Wrench className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-foreground">LocalService</span>
+          <Link to="/" className="inline-flex mb-6">
+            <Logo className="h-10" />
           </Link>
 
           {esModoRestablecer ? (

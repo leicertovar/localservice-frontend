@@ -1,7 +1,7 @@
 import { SolicitudServicioDatos } from "@/services/reservaService";
 
-// SVG del MapPin de lucide-react (mismo logo que usa la app)
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`;
+import isotipoInvertido from "@/assets/brand/isotipo-invertido.svg";
+import logotipoInvertido from "@/assets/brand/logotipo-invertido.svg";
 
 const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
   const provNombre = item.proveedor
@@ -41,22 +41,16 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
     body { font-family:'Segoe UI',Arial,sans-serif; background:#fff; color:#1a1a2e; }
     .page { width:700px; background:#fff; }
     .header {
-      background:linear-gradient(135deg,#6C63FF 0%,#3b82f6 100%);
+      background:#132651;
       padding:32px 40px 26px;
       color:#fff;
       display:flex;
       justify-content:space-between;
       align-items:flex-start;
     }
-    .brand { display:flex; align-items:center; gap:10px; }
-    .brand-icon {
-      width:42px; height:42px;
-      background:rgba(255,255,255,0.2);
-      border-radius:12px;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .brand-name { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
-    .brand-sub { font-size:12px; opacity:.8; margin-top:2px; }
+    .brand-logo { display:flex; align-items:center; gap:8px; height:36px; }
+    .brand-logo img { display:block; width:auto; }
+    .brand-sub { font-size:12px; opacity:.8; margin-top:8px; }
     .invoice-meta { text-align:right; }
     .invoice-title { font-size:28px; font-weight:800; letter-spacing:-1px; }
     .invoice-num { font-size:14px; opacity:.85; margin-top:4px; }
@@ -72,11 +66,11 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
     .body { padding:28px 40px; }
     .parties { display:flex; gap:16px; margin-bottom:24px; }
     .party { flex:1; background:#f4f6fb; border-radius:12px; padding:16px 18px; }
-    .party-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6C63FF; margin-bottom:6px; }
+    .party-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#1a75ee; margin-bottom:6px; }
     .party-name { font-size:14px; font-weight:700; color:#1a1a2e; }
     .party-detail { font-size:12px; color:#64748b; margin-top:2px; }
     hr { border:none; border-top:1.5px solid #e8ecf4; margin:0 0 20px; }
-    .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6C63FF; margin-bottom:10px; }
+    .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#1a75ee; margin-bottom:10px; }
     table { width:100%; border-collapse:collapse; margin-bottom:18px; }
     thead th { background:#f4f6fb; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#64748b; padding:9px 12px; text-align:left; }
     thead th:last-child { text-align:right; }
@@ -88,7 +82,7 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
     .detail-label { color:#64748b; }
     .detail-value { font-weight:500; color:#1a1a2e; }
     .total-box {
-      background:linear-gradient(135deg,#6C63FF 0%,#3b82f6 100%);
+      background:linear-gradient(135deg,#132651 0%,#1a75ee 100%);
       border-radius:12px; padding:18px 22px;
       display:flex; justify-content:space-between; align-items:center;
       margin-bottom:24px; color:#fff;
@@ -101,18 +95,18 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
       border-top:1.5px solid #e8ecf4;
     }
     .footer-note { font-size:11px; color:#94a3b8; }
-    .footer-brand { font-size:13px; font-weight:700; color:#6C63FF; }
+    .footer-brand { font-size:13px; font-weight:700; color:#1a75ee; }
   </style>
 </head>
 <body>
 <div class="page">
   <div class="header">
-    <div class="brand">
-      <div class="brand-icon">${LOGO_SVG}</div>
-      <div>
-        <div class="brand-name">LocalService</div>
-        <div class="brand-sub">Plataforma de servicios locales</div>
+    <div>
+      <div class="brand-logo">
+        <img src="${isotipoInvertido}" alt="" style="height:36px"/>
+        <img src="${logotipoInvertido}" alt="LocalService" style="height:16px"/>
       </div>
+      <div class="brand-sub">Plataforma de servicios locales</div>
     </div>
     <div class="invoice-meta">
       <div class="invoice-title">FACTURA</div>
@@ -208,6 +202,13 @@ export const descargarFacturaPDF = async (item: SolicitudServicioDatos): Promise
   const pagina = contenedor.querySelector(".page") as HTMLElement;
 
   try {
+    // Esperar a que carguen las imágenes del logo antes de capturar
+    await Promise.all(
+      Array.from(pagina.querySelectorAll("img")).map(img =>
+        img.complete ? null : new Promise(resolve => { img.onload = img.onerror = resolve; })
+      )
+    );
+
     const canvas = await html2canvas(pagina, {
       scale: 2,
       useCORS: true,
