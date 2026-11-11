@@ -1,5 +1,23 @@
 import api from '@/lib/api';
 
+export type EstadoSolicitud =
+  | 'pendiente'
+  | 'cotizado'
+  | 'aceptada'
+  | 'en_curso'
+  | 'completada'
+  | 'rechazada' // la rechazó el proveedor
+  | 'cancelada'; // la canceló el cliente
+
+/** Un cambio de estado (línea de tiempo). */
+export interface EventoSolicitud {
+  id: number;
+  estado: EstadoSolicitud;
+  actor_id?: string | null;
+  nota?: string | null;
+  created_at: string;
+}
+
 /**
  * Interfaz para los datos de una solicitud de servicio.
  */
@@ -19,7 +37,7 @@ export interface SolicitudServicioDatos {
   detalles_cotizacion?: string;
   latitud?: number | null;
   longitud?: number | null;
-  estado?: 'pendiente' | 'cotizado' | 'aceptada' | 'rechazada' | 'completada';
+  estado?: EstadoSolicitud;
   fecha_completado?: string;
   marcado_pagado?: boolean;
   confirmacion_cliente?: 'aceptado' | 'rechazado' | null;
@@ -33,14 +51,14 @@ export interface SolicitudServicioDatos {
     id: string;
     nombre: string;
     apellido?: string;
-    email: string;
+    email?: string;
     telefono?: string;
   };
   proveedor?: {
     id: string;
     nombre: string;
     apellido?: string;
-    email: string;
+    email?: string;
     telefono?: string;
   };
   servicio?: {
@@ -50,6 +68,9 @@ export interface SolicitudServicioDatos {
     categoria: string;
   };
   created_at?: string;
+  resena?: { id: number; calificacion: number } | null;
+  /** Historial de estados, del más antiguo al más reciente. */
+  eventos?: EventoSolicitud[];
 }
 
 /**
@@ -117,8 +138,8 @@ export const aceptarCotizacion = async (id: number): Promise<any> => {
 /**
  * Rechaza una solicitud o cotización.
  */
-export const rechazarCotizacion = async (id: number): Promise<any> => {
-  const { data } = await api.post(`/solicitudes/${id}/rechazar`);
+export const rechazarCotizacion = async (id: number, motivo?: string): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/rechazar`, motivo ? { motivo } : {});
   return data;
 };
 
@@ -176,5 +197,23 @@ export const listarDisputas = async (): Promise<any[]> => {
  */
 export const resolverDisputa = async (id: number, resolucion: 'aprobado' | 'rechazado', nota?: string): Promise<any> => {
   const { data } = await api.post(`/admin/disputas/${id}/resolver`, { resolucion, nota });
+  return data;
+};
+
+/** El cliente cancela su solicitud (solo antes de que el servicio empiece). */
+export const cancelarSolicitud = async (id: number, motivo?: string): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/cancelar`, motivo ? { motivo } : {});
+  return data;
+};
+
+/** El proveedor acepta una solicitud nueva sin cotizar; el precio acordado es opcional. */
+export const aceptarSolicitudProveedor = async (id: number, montoCotizado?: string): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/aceptar`, montoCotizado ? { monto_cotizado: montoCotizado } : {});
+  return data;
+};
+
+/** El proveedor indica que empezó el trabajo (aceptada → en curso). */
+export const iniciarServicio = async (id: number): Promise<any> => {
+  const { data } = await api.post(`/solicitudes/${id}/iniciar`);
   return data;
 };

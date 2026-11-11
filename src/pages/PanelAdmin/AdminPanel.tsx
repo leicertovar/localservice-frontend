@@ -26,6 +26,7 @@ import { obtenerNotificaciones } from '@/services/notificacionService'
 import UsuariosSection from "./sections/UsuariosSection";
 import VerificacionSection from "./sections/VerificacionSection";
 import ResenasSection from "./sections/ResenasSection";
+import ResenasAtipicasSection from "./sections/ResenasAtipicasSection";
 import ReportesSection from "./sections/ReportesSection";
 import DisputasSection from "./sections/DisputasSection";
 
@@ -356,6 +357,7 @@ const AdminPanel = () => {
               onEliminar={handleEliminarResena}
               onActualizar={cargarResenasReportadas}
             />
+            <ResenasAtipicasSection />
           </TabsContent>
 
           <TabsContent value="reportes">

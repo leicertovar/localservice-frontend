@@ -117,3 +117,13 @@ export const alternarEstadoServicio = async (id: number): Promise<any> => {
   const { data } = await api.patch(`/servicios/${id}/activar`);
   return data;
 };
+
+/** El proveedor actualiza su zona de trabajo (municipio, radio en km y barrios). */
+export const actualizarZonaProveedor = async (zona: {
+  ciudad: string;
+  radio_cobertura_km: number;
+  barrios_cobertura: string[];
+}): Promise<any> => {
+  const { data } = await api.put('/proveedor/zona', zona);
+  return data;
+};

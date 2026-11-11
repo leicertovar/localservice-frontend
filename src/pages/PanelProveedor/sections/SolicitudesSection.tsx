@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { enviarCotizacion, rechazarCotizacion, SolicitudServicioDatos } from "@/services/reservaService";
+import { aceptarSolicitudProveedor, enviarCotizacion, rechazarCotizacion, SolicitudServicioDatos } from "@/services/reservaService";
+import { mensajeError } from "@/lib/solicitudes";
 
 interface Props {
   solicitudes: SolicitudServicioDatos[];
@@ -26,13 +27,18 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
 
   const enviarCotizacionAlCliente = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!solicitudCotizarId || !montoCotizado || !tiempoEstimado) {
-      toast({ title: "Campos vacíos", variant: "destructive" });
+    const valor = Number(montoCotizado.replace(/\D/g, ""));
+    if (!solicitudCotizarId || !valor || !tiempoEstimado.trim()) {
+      toast({ title: "Faltan datos", description: "Escribe el valor y el tiempo estimado.", variant: "destructive" });
+      return;
+    }
+    if (valor < 1000) {
+      toast({ title: "Valor muy bajo", description: "El valor debe ser de al menos $1.000.", variant: "destructive" });
       return;
     }
     try {
       await enviarCotizacion(solicitudCotizarId, {
-        monto_cotizado: montoCotizado,
+        monto_cotizado: String(valor),
         tiempo_estimado: tiempoEstimado,
         garantia: garantiaCotizada,
         detalles_cotizacion: detallesCotizacion,
@@ -42,21 +48,41 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
       setTiempoEstimado("");
       setGarantiaCotizada("");
       setDetallesCotizacion("");
-      toast({ title: "Cotización enviada" });
+      toast({ title: "Cotización enviada", description: "Te avisaremos cuando el cliente responda." });
       onRefresh();
-    } catch {
-      toast({ title: "Error", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "No se pudo enviar", description: mensajeError(err, "No se pudo enviar la cotización."), variant: "destructive" });
+      onRefresh();
     }
   };
 
   const denegarSolicitud = async (id: number) => {
+    const motivo = prompt("¿Por qué rechazas la solicitud? (opcional, se le muestra al cliente)");
+    if (motivo === null) return;
     try {
-      await rechazarCotizacion(id);
+      await rechazarCotizacion(id, motivo.trim() || undefined);
       toast({ title: "Solicitud rechazada" });
-      onRefresh();
-    } catch {
-      toast({ title: "Error", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "No se pudo rechazar", description: mensajeError(err, "Inténtalo de nuevo."), variant: "destructive" });
     }
+    onRefresh();
+  };
+
+  const aceptarDirecto = async (id: number) => {
+    const precio = prompt("Aceptarás el trabajo sin cotizar.\nSi ya acordaste un precio con el cliente, escríbelo (opcional):");
+    if (precio === null) return;
+    const valor = precio.replace(/\D/g, "");
+    if (valor && Number(valor) < 1000) {
+      toast({ title: "Valor muy bajo", description: "El precio debe ser de al menos $1.000.", variant: "destructive" });
+      return;
+    }
+    try {
+      await aceptarSolicitudProveedor(id, valor || undefined);
+      toast({ title: "Trabajo aceptado", description: "Lo verás en Cotizaciones › Servicios agendados." });
+    } catch (err) {
+      toast({ title: "No se pudo aceptar", description: mensajeError(err, "Inténtalo de nuevo."), variant: "destructive" });
+    }
+    onRefresh();
   };
 
   return (
@@ -74,7 +100,7 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-foreground">{req.servicio?.nombre || "Servicio Personalizado"}</h3>
-                    <Badge variant="secondary" className="text-xs">{req.estado}</Badge>
+                    <Badge variant="secondary" className="text-xs">Pendiente</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Cliente: {req.cliente?.nombre} {req.cliente?.apellido} · {req.telefono}
@@ -85,7 +111,10 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => req.id && setSolicitudCotizarId(req.id)} className="gap-1">
-                    <CheckCircle className="w-4 h-4" />Cotizar
+                    <Send className="w-4 h-4" />Cotizar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => req.id && aceptarDirecto(req.id)} className="gap-1">
+                    <CheckCircle className="w-4 h-4" />Aceptar
                   </Button>
                   <Button
                     size="sm"
@@ -119,8 +148,17 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
                   <h4 className="font-medium text-foreground text-sm">Enviar Cotización</h4>
                   <div className="grid sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs">Monto Estimado</Label>
-                      <Input placeholder="Ej: $85.000" value={montoCotizado} onChange={e => setMontoCotizado(e.target.value)} required />
+                      <Label className="text-xs">Valor (COP)</Label>
+                      <Input
+                        inputMode="numeric"
+                        placeholder="$85.000"
+                        value={montoCotizado}
+                        onChange={e => {
+                          const digitos = e.target.value.replace(/\D/g, "");
+                          setMontoCotizado(digitos ? `$${Number(digitos).toLocaleString("es-CO")}` : "");
+                        }}
+                        required
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Tiempo estimado</Label>

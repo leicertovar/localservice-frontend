@@ -14,12 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import NotificationsPanel from "@/components/reusable/NotificationsPanel";
 import ChatPanel from "@/components/reusable/ChatPanel";
-import { fetchCurrentUser, getUserProfile } from "@/services/authService";
+import { fetchCurrentUser, getUserProfile, setUserProfile } from "@/services/authService";
 import { storageUrl } from "@/lib/api";
 import { obtenerServicios, ServicioDatos } from "@/services/proveedorService";
 import {
   obtenerSolicitudesProveedor,
   marcarCompletado,
+  iniciarServicio,
   SolicitudServicioDatos,
 } from "@/services/reservaService";
 import { obtenerResenas, type Resena } from "@/services/resenaService";
@@ -88,6 +89,8 @@ const ProviderPanel = () => {
     esta_verificado: false,
     categoria_servicio: "",
     foto_perfil: "",
+    radio_cobertura_km: null as number | null,
+    barrios_cobertura: [] as string[],
   });
   const [editProfile, setEditProfile] = useState(profileData);
 
@@ -112,6 +115,8 @@ const ProviderPanel = () => {
       esta_verificado: p.esta_verificado || false,
       categoria_servicio: p.categoria_servicio || "",
       foto_perfil: p.foto_perfil || "",
+      radio_cobertura_km: p.radio_cobertura_km ?? null,
+      barrios_cobertura: Array.isArray(p.barrios_cobertura) ? p.barrios_cobertura : [],
     };
     setProfileData(datos);
     setEditProfile(datos);
@@ -158,6 +163,16 @@ const ProviderPanel = () => {
     } catch (err: any) {
       toast({ title: "No se puede completar", description: err.response?.data?.mensaje || "Error al marcar el servicio.", variant: "destructive" });
     }
+  };
+
+  const iniciarServicioProveedor = async (id: number) => {
+    try {
+      await iniciarServicio(id);
+      toast({ title: "Servicio en curso", description: "Le avisamos al cliente que empezaste." });
+    } catch (err: any) {
+      toast({ title: "No se pudo iniciar", description: err.response?.data?.mensaje || "Inténtalo de nuevo.", variant: "destructive" });
+    }
+    cargarSolicitudes();
   };
 
   const abrirChatConCliente = (nombre: string, id: string) => {
@@ -256,7 +271,7 @@ const ProviderPanel = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: "Solicitudes Nuevas", value: solicitudes.filter(s => s.estado === "pendiente").length, icon: Clock, color: "text-info", bg: "bg-info/10 border-info/20" },
-            { label: "Trabajos Confirmados", value: solicitudes.filter(s => s.estado === "aceptada").length, icon: CheckCircle, color: "text-success", bg: "bg-success/10 border-success/20" },
+            { label: "Trabajos Confirmados", value: solicitudes.filter(s => s.estado === "aceptada" || s.estado === "en_curso").length, icon: CheckCircle, color: "text-success", bg: "bg-success/10 border-success/20" },
             {
               label: "Calificación",
               value: `${resenas.length ? (resenas.reduce((a, r) => a + r.calificacion, 0) / resenas.length).toFixed(1) : "—"} ★`,
@@ -332,6 +347,7 @@ const ProviderPanel = () => {
             <CotizacionesSection
               solicitudes={solicitudes}
               onCompletar={completarServicio}
+              onIniciar={iniciarServicioProveedor}
             />
           </TabsContent>
 
@@ -383,6 +399,7 @@ const ProviderPanel = () => {
               profileData={profileData}
               misServicios={misServicios}
               onEditarPerfil={() => { setEditProfile(profileData); setFotoFile(null); setEditProfileOpen(true); }}
+              onZonaGuardada={usuario => { setUserProfile(usuario); rellenarPerfil(usuario); }}
             />
           </TabsContent>
         </Tabs>

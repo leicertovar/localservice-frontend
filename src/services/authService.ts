@@ -159,6 +159,8 @@ export const registrarUsuario = async (
     if (valor !== undefined && valor !== null) {
       if (valor instanceof File) {
         formData.append(llave, valor)
+      } else if (Array.isArray(valor)) {
+        valor.forEach((item) => formData.append(`${llave}[]`, String(item)))
       } else {
         formData.append(llave, String(valor))
       }
