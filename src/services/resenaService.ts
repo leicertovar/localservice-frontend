@@ -71,3 +71,45 @@ export const moderarResena = async (id: number, accion: 'ocultar' | 'restaurar')
 export const eliminarResena = async (id: number): Promise<void> => {
   await api.delete(`/admin/resenas/${id}`)
 }
+
+/** Distribución IQR de las calificaciones de un proveedor (para el diagrama de caja). */
+export interface DistribucionCalificaciones {
+  q1: number
+  q3: number
+  iqr: number
+  inferior: number
+  superior: number
+  n: number
+}
+
+export interface ResenaAtipica extends Resena {
+  es_atipica: boolean
+  revision_atipica: 'conservar' | 'excluir' | null
+  proveedor?: { id: string; nombre: string; apellido?: string }
+  solicitud?: {
+    id: number
+    descripcion: string
+    fecha: string
+    estado: string
+    confirmacion_cliente?: string | null
+    queja_cliente?: string | null
+  } | null
+  distribucion: DistribucionCalificaciones | null
+}
+
+/**
+ * Admin: calificaciones atípicas (método IQR), fuera del promedio hasta revisarlas.
+ */
+export const obtenerResenasAtipicas = async (
+  estado: 'pendientes' | 'revisadas' | 'todas' = 'pendientes'
+): Promise<ResenaAtipica[]> => {
+  const { data } = await api.get('/admin/resenas-atipicas', { params: { estado } })
+  return data
+}
+
+/**
+ * Admin: conservar (vuelve a contar en el promedio) o excluir una calificación atípica.
+ */
+export const revisarResenaAtipica = async (id: number, decision: 'conservar' | 'excluir'): Promise<void> => {
+  await api.patch(`/admin/resenas/${id}/atipica`, { decision })
+}

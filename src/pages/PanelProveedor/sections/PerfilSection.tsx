@@ -1,4 +1,12 @@
+import { useState } from "react";
+import { MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import ZonaTrabajoCampos, { zonaInicial, type ZonaTrabajo } from "@/components/reusable/ZonaTrabajoCampos";
+import { actualizarZonaProveedor } from "@/services/proveedorService";
+import { mensajeError } from "@/lib/solicitudes";
+import type { UserProfile } from "@/services/authService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { storageUrl } from "@/lib/api";
@@ -40,15 +48,54 @@ interface ProfileData {
   horario_atencion: Record<string, string>;
   esta_verificado: boolean;
   foto_perfil: string;
+  radio_cobertura_km: number | null;
+  barrios_cobertura: string[];
 }
 
 interface Props {
   profileData: ProfileData;
   misServicios: ServicioDatos[];
   onEditarPerfil: () => void;
+  /** Recibe el usuario actualizado tras guardar la zona. */
+  onZonaGuardada: (usuario: UserProfile) => void;
 }
 
-const PerfilSection = ({ profileData, misServicios, onEditarPerfil }: Props) => (
+const PerfilSection = ({ profileData, misServicios, onEditarPerfil, onZonaGuardada }: Props) => {
+  const { toast } = useToast();
+  const [editandoZona, setEditandoZona] = useState(false);
+  const [zona, setZona] = useState<ZonaTrabajo>(zonaInicial());
+  const [errorZona, setErrorZona] = useState<string>();
+  const [guardandoZona, setGuardandoZona] = useState(false);
+
+  const abrirZona = () => {
+    setZona(zonaInicial(profileData.ciudad, profileData.radio_cobertura_km, profileData.barrios_cobertura));
+    setErrorZona(undefined);
+    setEditandoZona(true);
+  };
+
+  const guardarZona = async () => {
+    if (zona.barrios.length === 0) {
+      setErrorZona("Elige al menos un barrio donde atiendes.");
+      return;
+    }
+    setGuardandoZona(true);
+    try {
+      const { usuario } = await actualizarZonaProveedor({
+        ciudad: zona.ciudad,
+        radio_cobertura_km: zona.radio,
+        barrios_cobertura: zona.barrios,
+      });
+      onZonaGuardada(usuario);
+      setEditandoZona(false);
+      toast({ title: "Zona de trabajo actualizada", description: "Los clientes la verán en tu perfil." });
+    } catch (err) {
+      setErrorZona(mensajeError(err, "No se pudo guardar la zona."));
+    } finally {
+      setGuardandoZona(false);
+    }
+  };
+
+  return (
   <div className="max-w-lg space-y-6">
     <h2 className="text-lg font-semibold text-foreground">Mi Perfil de Proveedor</h2>
     <div className="bg-card rounded-xl border p-6 space-y-4">
@@ -102,6 +149,29 @@ const PerfilSection = ({ profileData, misServicios, onEditarPerfil }: Props) => 
         </div>
 
         <div className="col-span-2 border-t pt-3 mt-1">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />Zona de trabajo
+            </label>
+            <Button variant="ghost" size="sm" className="h-7 text-xs text-primary" onClick={abrirZona}>Editar zona</Button>
+          </div>
+          {profileData.barrios_cobertura.length > 0 ? (
+            <>
+              <p className="text-sm font-medium text-foreground mt-1">
+                {profileData.radio_cobertura_km ? `Te desplazas hasta ${profileData.radio_cobertura_km} km` : "Radio sin definir"}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {profileData.barrios_cobertura.map(b => (
+                  <span key={b} className="rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{b}</span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-1">Aún no indicas en qué barrios atiendes. Los clientes lo ven en tu perfil.</p>
+          )}
+        </div>
+
+        <div className="col-span-2 border-t pt-3 mt-1">
           <label className="text-xs text-muted-foreground font-semibold">Horario de atención semanal</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
             {Object.entries(normalizarHorario(profileData.horario_atencion)).map(([dia, horas]) => (
@@ -127,7 +197,29 @@ const PerfilSection = ({ profileData, misServicios, onEditarPerfil }: Props) => 
         Editar Perfil
       </Button>
     </div>
+
+    <Dialog open={editandoZona} onOpenChange={setEditandoZona}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mi zona de trabajo</DialogTitle>
+          <DialogDescription>Los clientes verán en tu perfil hasta dónde te desplazas y en qué barrios atiendes.</DialogDescription>
+        </DialogHeader>
+        <ZonaTrabajoCampos
+          valor={zona}
+          onChange={nueva => {
+            setZona(nueva);
+            if (nueva.barrios.length) setErrorZona(undefined);
+          }}
+          error={errorZona}
+        />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => setEditandoZona(false)} disabled={guardandoZona}>Cancelar</Button>
+          <Button onClick={guardarZona} disabled={guardandoZona}>{guardandoZona ? "Guardando…" : "Guardar zona"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
-);
+  );
+};
 
 export default PerfilSection;

@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import ChatPanel from "@/components/reusable/ChatPanel";
 import { obtenerDetalleProveedor } from "@/services/proveedorService";
 import { crearSolicitud } from "@/services/reservaService";
-import { obtenerResenas, crearResena, reportarResena, type Resena } from "@/services/resenaService";
+import { obtenerResenas, reportarResena, type Resena } from "@/services/resenaService";
 import { storageUrl } from "@/lib/api";
 
 // Días de la semana para el horario
@@ -52,10 +52,6 @@ const ProviderDetail = () => {
   const [longitud, setLongitud] = useState<number>(-77.0707);
 
   const [resenas, setResenas] = useState<Resena[]>([]);
-  const [yaReseno, setYaReseno] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
-  const [enviandoResena, setEnviandoResena] = useState(false);
   const [reportDialogId, setReportDialogId] = useState<number | null>(null);
   const [reportMotivo, setReportMotivo] = useState("");
 
@@ -73,13 +69,6 @@ const ProviderDetail = () => {
     try {
       const lista = await obtenerResenas(id);
       setResenas(lista);
-      // Verificar si el usuario autenticado ya dejó una reseña
-      const perfil = localStorage.getItem('user_profile');
-      if (perfil) {
-        const user = JSON.parse(perfil);
-        const yaExiste = lista.some(r => String(r.cliente_id) === String(user.id));
-        setYaReseno(yaExiste);
-      }
     } catch {}
   };
 
@@ -243,24 +232,6 @@ const ProviderDetail = () => {
     }
   };
 
-  const enviarResena = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !reviewComment.trim()) return;
-    setEnviandoResena(true);
-    try {
-      await crearResena({ proveedor_id: id, calificacion: reviewRating, comentario: reviewComment });
-      toast({ title: "Reseña publicada", description: "Tu calificación ha sido enviada al proveedor." });
-      setReviewComment("");
-      setReviewRating(5);
-      setYaReseno(true);
-      await cargarResenas();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.response?.data?.mensaje || "No se pudo publicar la reseña.", variant: "destructive" });
-    } finally {
-      setEnviandoResena(false);
-    }
-  };
-
   /**
    * Normaliza la estructura del horario guardado (soporta string plano y JSON).
    */
@@ -364,7 +335,7 @@ const ProviderDetail = () => {
 
               <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
                 <span className="flex items-center gap-1 text-foreground font-medium">
-                  <Star className="w-4 h-4 text-warning fill-warning" />{p.calificacion || "4.9"} ({p.total_resenas || 0} reseñas)
+                  <Star className="w-4 h-4 text-warning fill-warning" />{Number(p.calificacion || 0).toFixed(1)} ({resenas.length} reseña{resenas.length === 1 ? "" : "s"})
                 </span>
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <MapPin className="w-4 h-4" />{p.ciudad || "Ciudad no especificada"}
@@ -378,6 +349,22 @@ const ProviderDetail = () => {
               </div>
 
               <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{p.biografia || "Este proveedor aún no cuenta con una biografía detallada en su perfil público."}</p>
+
+              {(p.radio_cobertura_km || p.barrios_cobertura?.length > 0) && (
+                <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+                  <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-primary" />Zona de trabajo
+                    {p.radio_cobertura_km ? <span className="font-normal text-muted-foreground">· se desplaza hasta {p.radio_cobertura_km} km</span> : null}
+                  </p>
+                  {p.barrios_cobertura?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Barrios donde atiende">
+                      {p.barrios_cobertura.map((b: string) => (
+                        <span key={b} className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-foreground">{b}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -453,7 +440,7 @@ const ProviderDetail = () => {
         <Tabs defaultValue="servicios" className="space-y-6">
           <TabsList className="bg-muted">
             <TabsTrigger value="servicios">Servicios Disponibles</TabsTrigger>
-            <TabsTrigger value="resenas">Reseñas ({p.total_resenas || 0})</TabsTrigger>
+            <TabsTrigger value="resenas">Reseñas ({resenas.length})</TabsTrigger>
             <TabsTrigger value="disponibilidad">Disponibilidad</TabsTrigger>
           </TabsList>
 
@@ -483,7 +470,7 @@ const ProviderDetail = () => {
                   <div className="flex gap-0.5 mt-2 justify-center sm:justify-start">
                     {[1,2,3,4,5].map(s => <Star key={s} className={`w-5 h-5 ${s <= Math.round(p.calificacion || 0) ? "text-warning fill-warning" : "text-muted"}`} />)}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{p.total_resenas || 0} reseñas totales</p>
+                  <p className="text-sm text-muted-foreground mt-1">{resenas.length} reseña{resenas.length === 1 ? "" : "s"} · más recientes primero</p>
                 </div>
                 <div className="flex-1 space-y-2">
                   {ratingDistribution.map(r => (
@@ -499,36 +486,10 @@ const ProviderDetail = () => {
               </div>
             </div>
 
-            {/* Formulario de reseña (solo si no ha reseñado) */}
-            {!yaReseno ? (
-              <div className="bg-card rounded-xl border p-5 ring-1 ring-primary/20">
-                <h4 className="font-semibold text-foreground mb-3">Deja tu calificación</h4>
-                <form onSubmit={enviarResena} className="space-y-3">
-                  <div className="flex gap-1">
-                    {[1,2,3,4,5].map(s => (
-                      <button key={s} type="button" onClick={() => setReviewRating(s)}>
-                        <Star className={`w-7 h-7 ${s <= reviewRating ? "text-warning fill-warning" : "text-muted"}`} />
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    className="w-full rounded-lg border bg-background p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/25"
-                    rows={3}
-                    placeholder="Cuéntanos tu experiencia con este proveedor..."
-                    value={reviewComment}
-                    onChange={e => setReviewComment(e.target.value)}
-                    required
-                  />
-                  <Button type="submit" size="sm" disabled={enviandoResena}>
-                    {enviandoResena ? "Publicando..." : "Publicar reseña"}
-                  </Button>
-                </form>
-              </div>
-            ) : (
-              <div className="bg-muted/50 rounded-xl border p-4 text-sm text-muted-foreground text-center">
-                Ya dejaste una reseña para este proveedor.
-              </div>
-            )}
+            {/* Se califica desde el Historial, con el servicio completado (una calificación por servicio) */}
+            <div className="bg-muted/50 rounded-xl border p-4 text-sm text-muted-foreground text-center">
+              ¿Ya te atendió este proveedor? Califícalo desde tu <span className="font-medium text-foreground">Historial</span> cuando el servicio esté completado.
+            </div>
 
             {/* Listado de Reseñas reales */}
             {resenas.length === 0 ? (

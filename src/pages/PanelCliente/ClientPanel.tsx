@@ -21,12 +21,14 @@ import {
   obtenerSolicitudesCliente,
   aceptarCotizacion as apiAceptarCotizacion,
   rechazarCotizacion as apiRechazarCotizacion,
+  cancelarSolicitud as apiCancelarSolicitud,
   confirmarCompletado,
   SolicitudServicioDatos
 } from "@/services/reservaService";
 import { crearResena, reportarResena } from "@/services/resenaService";
 import BuscarProveedorSection from "./sections/BuscarProveedorSection";
 import SolicitudesSection from "./sections/SolicitudesSection";
+import { mensajeError } from "@/lib/solicitudes";
 import HistorialSection from "./sections/HistorialSection";
 import PerfilSection from "./sections/PerfilSection";
 
@@ -136,19 +138,33 @@ const ClientPanel = () => {
       await apiAceptarCotizacion(id);
       toast({ title: "Cotización aceptada", description: "El servicio ha sido agendado." });
       cargarSolicitudesCliente();
-    } catch {
-      toast({ title: "Error", description: "No se pudo aceptar la cotización.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "No se pudo aceptar", description: mensajeError(err, "No se pudo aceptar la cotización."), variant: "destructive" });
+      cargarSolicitudesCliente();
     }
   };
 
   const rechazarCotizacionProveedor = async (id: number) => {
+    if (!confirm("¿Rechazar la cotización? La solicitud quedará cancelada.")) return;
     try {
       await apiRechazarCotizacion(id);
-      toast({ title: "Cotización rechazada", variant: "destructive" });
-      cargarSolicitudesCliente();
-    } catch {
-      toast({ title: "Error", description: "No se pudo rechazar la cotización.", variant: "destructive" });
+      toast({ title: "Cotización rechazada", description: "La solicitud quedó cancelada." });
+    } catch (err) {
+      toast({ title: "No se pudo rechazar", description: mensajeError(err, "No se pudo rechazar la cotización."), variant: "destructive" });
     }
+    cargarSolicitudesCliente();
+  };
+
+  const cancelarSolicitudCliente = async (id: number) => {
+    const motivo = prompt("¿Por qué cancelas la solicitud? (opcional)");
+    if (motivo === null) return;
+    try {
+      await apiCancelarSolicitud(id, motivo.trim() || undefined);
+      toast({ title: "Solicitud cancelada", description: "Le avisamos al proveedor." });
+    } catch (err) {
+      toast({ title: "No se pudo cancelar", description: mensajeError(err, "No se pudo cancelar la solicitud."), variant: "destructive" });
+    }
+    cargarSolicitudesCliente();
   };
 
   const publicarResenaCliente = async () => {
@@ -341,6 +357,7 @@ const ClientPanel = () => {
               solicitudes={solicitudes}
               onAceptarCotizacion={aceptarCotizacionProveedor}
               onRechazarCotizacion={rechazarCotizacionProveedor}
+              onCancelar={cancelarSolicitudCliente}
               onAbrirChat={abrirChatConProveedor}
             />
           </TabsContent>

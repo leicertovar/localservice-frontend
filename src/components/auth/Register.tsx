@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registrarUsuario, logout } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import ZonaTrabajoCampos, { zonaInicial, type ZonaTrabajo } from "@/components/reusable/ZonaTrabajoCampos";
 
 const CATEGORIAS = [
   "Plomería","Electricidad","Limpieza","Pintura","Jardinería",
@@ -30,6 +31,8 @@ const Register = () => {
   const [docCedula,  setDocCedula]  = useState<File | null>(null);
   const [docRut,     setDocRut]     = useState<File | null>(null);
   const [docDiploma, setDocDiploma] = useState<File | null>(null);
+  const [zona, setZona] = useState<ZonaTrabajo>(zonaInicial());
+  const [errorZona, setErrorZona] = useState<string>();
 
   const manejarRegistro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +45,15 @@ const Register = () => {
       const datos: any = { ...form, rol: role };
       if (role === "proveedor") {
         datos.categoria_servicio = form.categoria_servicio;
+        if (zona.barrios.length === 0) {
+          setErrorZona("Elige al menos un barrio donde atiendes.");
+          toast({ title: "Zona de trabajo", description: "Elige al menos un barrio donde atiendes.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        datos.ciudad = zona.ciudad;
+        datos.radio_cobertura_km = zona.radio;
+        datos.barrios_cobertura = zona.barrios;
         if (!docCedula || !docRut || !docDiploma) {
           toast({ title: "Documentos requeridos", description: "Adjunta los 3 documentos: Cédula, RUT y Diploma.", variant: "destructive" });
           setIsLoading(false);
@@ -253,6 +265,19 @@ const Register = () => {
                     </div>
                   ))}
                   <p className="text-[11px] text-muted-foreground">Formatos: PDF, JPG, PNG · Máx. 10 MB por archivo</p>
+
+                  <div className="border-t border-primary/15 pt-4 space-y-1">
+                    <h3 className="text-sm font-bold text-primary">¿Dónde trabajas?</h3>
+                    <p className="text-[12px] text-muted-foreground">Los clientes verán en tu perfil hasta dónde te desplazas y en qué barrios atiendes.</p>
+                  </div>
+                  <ZonaTrabajoCampos
+                    valor={zona}
+                    onChange={nueva => {
+                      setZona(nueva);
+                      if (nueva.barrios.length) setErrorZona(undefined);
+                    }}
+                    error={errorZona}
+                  />
                 </div>
               )}
 

@@ -30,12 +30,12 @@ const AgendaSection = ({ solicitudes, onCompletar, onAbrirChat }: Props) => {
 
   const obtenerReservasDia = (dia: number) =>
     solicitudes.filter(sol => {
-      if (sol.estado !== "aceptada") return false;
+      if (sol.estado !== "aceptada" && sol.estado !== "en_curso") return false;
       const f = new Date(sol.fecha + "T00:00:00");
       return f.getDate() === dia && f.getMonth() === mesCalendario && f.getFullYear() === anioCalendario;
     });
 
-  const serviciosAgendados = solicitudes.filter(sol => sol.estado === "aceptada");
+  const serviciosAgendados = solicitudes.filter(sol => sol.estado === "aceptada" || sol.estado === "en_curso");
   const serviciosFiltrados = diaSeleccionado
     ? serviciosAgendados.filter(sol => {
         const f = new Date(sol.fecha + "T00:00:00");

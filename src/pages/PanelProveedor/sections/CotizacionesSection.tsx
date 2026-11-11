@@ -1,16 +1,18 @@
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SolicitudServicioDatos } from "@/services/reservaService";
+import { esFechaFutura, estadoSolicitud, formatearMonto } from "@/lib/solicitudes";
 
 interface Props {
   solicitudes: SolicitudServicioDatos[];
   onCompletar: (id: number) => void;
+  onIniciar: (id: number) => void;
 }
 
-const CotizacionesSection = ({ solicitudes, onCompletar }: Props) => {
+const CotizacionesSection = ({ solicitudes, onCompletar, onIniciar }: Props) => {
   const cotizadas = solicitudes.filter(s => s.estado === "cotizado");
-  const agendadas = solicitudes.filter(s => s.estado === "aceptada");
+  const agendadas = solicitudes.filter(s => s.estado === "aceptada" || s.estado === "en_curso");
 
   return (
     <div className="space-y-4">
@@ -29,7 +31,7 @@ const CotizacionesSection = ({ solicitudes, onCompletar }: Props) => {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-lg font-bold text-foreground">{q.monto_cotizado}</span>
+              <span className="text-lg font-bold text-foreground">{formatearMonto(q.monto_cotizado)}</span>
               <Badge className="text-xs bg-warning/10 text-warning">En espera</Badge>
             </div>
           </div>
@@ -48,13 +50,19 @@ const CotizacionesSection = ({ solicitudes, onCompletar }: Props) => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-foreground">{q.monto_cotizado}</span>
+                <Badge className={`text-xs ${estadoSolicitud(q.estado).className}`}>{estadoSolicitud(q.estado).label}</Badge>
+                <span className="text-lg font-bold text-foreground">{formatearMonto(q.monto_cotizado)}</span>
                 {(() => {
-                  const hoy = new Date().toISOString().split("T")[0];
-                  const puedCompletar = !q.fecha || hoy >= q.fecha;
-                  return puedCompletar ? (
-                    <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => q.id && onCompletar(q.id)}>
-                      <CheckCircle className="w-4 h-4 mr-1" />Completar
+                  if (q.estado === "en_curso") {
+                    return (
+                      <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => q.id && onCompletar(q.id)}>
+                        <CheckCircle className="w-4 h-4 mr-1" />Completar
+                      </Button>
+                    );
+                  }
+                  return !esFechaFutura(q.fecha) ? (
+                    <Button size="sm" onClick={() => q.id && onIniciar(q.id)}>
+                      <PlayCircle className="w-4 h-4 mr-1" />Iniciar
                     </Button>
                   ) : (
                     <div className="text-right">
