@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Star, MapPin, Clock, Shield, MessageCircle, Calendar, CheckCircle, DollarSign, Flag } from "lucide-react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +15,9 @@ import { obtenerDetalleProveedor } from "@/services/proveedorService";
 import { crearSolicitud } from "@/services/reservaService";
 import { obtenerResenas, reportarResena, type Resena } from "@/services/resenaService";
 import { storageUrl } from "@/lib/api";
+import Mapa from "@/components/reusable/Mapa";
+import AvisoZona from "@/components/reusable/AvisoZona";
+import { aPunto, obtenerUbicacionActual, type Punto } from "@/lib/geo";
 
 // Días de la semana para el horario
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -47,19 +48,20 @@ const ProviderDetail = () => {
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [telefonoContacto, setTelefonoContacto] = useState("");
 
-  // Coordenadas seleccionadas en el mapa
-  const [latitud, setLatitud] = useState<number>(3.8801); // Centro de Buenaventura
-  const [longitud, setLongitud] = useState<number>(-77.0707);
+  // Lugar exacto del trabajo marcado en el mapa (además de la dirección escrita)
+  const [pinServicio, setPinServicio] = useState<Punto | null>(null);
+  const [errorPin, setErrorPin] = useState<string>();
+
+  // Ubicación actual del cliente, para saber si está dentro del radio del proveedor
+  const [miUbicacion, setMiUbicacion] = useState<Punto | null>(null);
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
+  const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
 
   const [resenas, setResenas] = useState<Resena[]>([]);
   const [reportDialogId, setReportDialogId] = useState<number | null>(null);
   const [reportMotivo, setReportMotivo] = useState("");
 
   const { toast } = useToast();
-
-  // Referencias para el mapa de Leaflet
-  const clientMapRef = useRef<any>(null);
-  const clientMarkerRef = useRef<any>(null);
 
   /**
    * Carga los datos del proveedor y sus servicios desde el backend.
@@ -98,79 +100,24 @@ const ProviderDetail = () => {
     cargarResenas();
   }, [id]);
 
-  /**
-   * Inicializa el mini mapa de Leaflet en el formulario de cotización.
-   */
-  const inicializarMapaCliente = () => {
-    // Si ya existe una instancia de mapa activa, la destruimos
-    if (clientMapRef.current) {
-      try {
-        clientMapRef.current.remove();
-      } catch (e) {
-        console.error("Error al remover mapa del cliente:", e);
-      }
-      clientMapRef.current = null;
-      clientMarkerRef.current = null;
+  const pedirUbicacion = async () => {
+    setBuscandoUbicacion(true);
+    setErrorUbicacion(null);
+    try {
+      setMiUbicacion(await obtenerUbicacionActual());
+    } catch (mensaje) {
+      setErrorUbicacion(String(mensaje));
+    } finally {
+      setBuscandoUbicacion(false);
     }
-
-    const mapaElement = document.getElementById("mapa-cliente");
-    if (!mapaElement) {
-      console.warn("Elemento mapa-cliente no encontrado.");
-      return;
-    }
-
-    // Corregir problemas de carga de iconos en Leaflet para entornos empaquetados
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    });
-
-    // Iniciar mapa centrado en Buenaventura
-    const mapa = L.map("mapa-cliente").setView([3.8801, -77.0707], 14);
-    clientMapRef.current = mapa;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(mapa);
-
-    // Marcador arrastrable en el mapa
-    const marcador = L.marker([3.8801, -77.0707], { draggable: true }).addTo(mapa);
-    clientMarkerRef.current = marcador;
-
-    // Actualizar coordenadas en el estado tras arrastrar el marcador
-    marcador.on("dragend", () => {
-      const pos = marcador.getLatLng();
-      setLatitud(pos.lat);
-      setLongitud(pos.lng);
-    });
-
-    // Actualizar coordenadas tras hacer clic en cualquier punto del mapa
-    mapa.on("click", (e: any) => {
-      const { lat, lng } = e.latlng;
-      marcador.setLatLng([lat, lng]);
-      setLatitud(lat);
-      setLongitud(lng);
-    });
   };
 
-  // Observa cuándo se abre el formulario de cotización para iniciar el mapa
+  // Si el proveedor tiene zona en el mapa, se compara con la ubicación actual del cliente
+  const perfilZona = proveedor?.perfil_proveedor;
+  const tieneZona = Boolean(aPunto(perfilZona?.latitud, perfilZona?.longitud) && perfilZona?.radio_cobertura_km);
   useEffect(() => {
-    if (showQuoteForm) {
-      const temporizador = setTimeout(() => {
-        inicializarMapaCliente();
-      }, 100);
-      return () => {
-        clearTimeout(temporizador);
-        if (clientMapRef.current) {
-          clientMapRef.current.remove();
-          clientMapRef.current = null;
-          clientMarkerRef.current = null;
-        }
-      };
-    }
-  }, [showQuoteForm]);
+    if (tieneZona) pedirUbicacion();
+  }, [tieneZona]);
 
   /**
    * Envía el formulario para crear una solicitud de cotización/servicio en la base de datos.
@@ -180,6 +127,11 @@ const ProviderDetail = () => {
     if (!id) return;
     if (!fechaDeseada || !horaDeseada || !direccionServicio || !descripcionProblema || !telefonoContacto) {
       toast({ title: "Campos incompletos", description: "Todos los campos obligatorios deben llenarse.", variant: "destructive" });
+      return;
+    }
+    if (!pinServicio) {
+      setErrorPin("Marca en el mapa el lugar exacto del trabajo.");
+      toast({ title: "Falta la ubicación", description: "Marca en el mapa el lugar exacto del trabajo.", variant: "destructive" });
       return;
     }
 
@@ -192,8 +144,8 @@ const ProviderDetail = () => {
         direccion: direccionServicio,
         descripcion: descripcionProblema,
         telefono: telefonoContacto,
-        latitud: latitud,
-        longitud: longitud
+        latitud: pinServicio.lat,
+        longitud: pinServicio.lng
       });
 
       setShowQuoteForm(false);
@@ -203,8 +155,7 @@ const ProviderDetail = () => {
       setDireccionServicio("");
       setDescripcionProblema("");
       setTelefonoContacto("");
-      setLatitud(3.8801);
-      setLongitud(-77.0707);
+      setPinServicio(null);
 
       toast({ 
         title: "Cotización solicitada", 
@@ -276,6 +227,8 @@ const ProviderDetail = () => {
   }
 
   const p = proveedor.perfil_proveedor || {};
+  const baseZona = aPunto(p.latitud, p.longitud);
+  const zonaMapa = baseZona && p.radio_cobertura_km ? { centro: baseZona, radioKm: Number(p.radio_cobertura_km) } : null;
   const nombreCompleto = `${proveedor.nombre} ${proveedor.apellido || ""}`.trim();
   const iniciales = `${proveedor.nombre ? proveedor.nombre[0] : ""}${proveedor.apellido ? proveedor.apellido[0] : ""}`;
   const servicios = proveedor.servicios || [];
@@ -350,12 +303,32 @@ const ProviderDetail = () => {
 
               <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{p.biografia || "Este proveedor aún no cuenta con una biografía detallada en su perfil público."}</p>
 
-              {(p.radio_cobertura_km || p.barrios_cobertura?.length > 0) && (
+              {(zonaMapa || p.radio_cobertura_km || p.barrios_cobertura?.length > 0) && (
                 <div className="mt-4 rounded-xl border bg-muted/30 p-4">
                   <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-primary" />Zona de trabajo
-                    {p.radio_cobertura_km ? <span className="font-normal text-muted-foreground">· se desplaza hasta {p.radio_cobertura_km} km</span> : null}
+                    {p.radio_cobertura_km ? <span className="font-normal text-muted-foreground">· atiende hasta {p.radio_cobertura_km} km a la redonda</span> : null}
                   </p>
+                  {zonaMapa && (
+                    <div className="mt-3">
+                      <Mapa
+                        etiqueta={`Zona de atención de ${nombreCompleto}: radio de ${zonaMapa.radioKm} km`}
+                        circulo={zonaMapa}
+                        pin={zonaMapa.centro}
+                        ubicacionUsuario={miUbicacion}
+                        alto={240}
+                      />
+                      <AvisoZona
+                        zona={zonaMapa}
+                        punto={miUbicacion}
+                        sujeto="ubicacion"
+                        nombreProveedor={proveedor.nombre}
+                        buscando={buscandoUbicacion}
+                        error={errorUbicacion}
+                        onUsarUbicacion={pedirUbicacion}
+                      />
+                    </div>
+                  )}
                   {p.barrios_cobertura?.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Barrios donde atiende">
                       {p.barrios_cobertura.map((b: string) => (
@@ -409,18 +382,24 @@ const ProviderDetail = () => {
                 <Input placeholder="Ej: Calle 5 #12-30, Barrio Centro" value={direccionServicio} onChange={e => setDireccionServicio(e.target.value)} required />
               </div>
 
-              {/* Mini mapa Leaflet */}
+              {/* Lugar exacto del trabajo */}
               <div className="space-y-2">
-                <Label className="block">Ubicación exacta en el mapa (Haz clic o arrastra el marcador)</Label>
-                <div id="mapa-cliente" className="w-full h-64 rounded-lg overflow-hidden border" style={{ minHeight: "250px" }} />
-                <div className="grid grid-cols-2 gap-3 text-[11px] text-muted-foreground mt-2 bg-muted/40 p-2 rounded border">
-                  <div>
-                    <span className="font-semibold text-foreground">Latitud:</span> {latitud.toFixed(6)}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-foreground">Longitud:</span> {longitud.toFixed(6)}
-                  </div>
-                </div>
+                <Label className="block">Ubicación exacta en el mapa (haz clic, arrastra el pin o usa "Mi ubicación")</Label>
+                <Mapa
+                  etiqueta="Mapa para marcar el lugar del trabajo"
+                  pin={pinServicio}
+                  onPinChange={punto => {
+                    setPinServicio(punto);
+                    setErrorPin(undefined);
+                  }}
+                  circulo={zonaMapa}
+                  botonUbicacion
+                  onErrorUbicacion={mensaje => toast({ title: "Ubicación", description: mensaje, variant: "destructive" })}
+                />
+                {errorPin && <p className="text-xs font-medium text-destructive">{errorPin}</p>}
+                {zonaMapa && pinServicio && (
+                  <AvisoZona zona={zonaMapa} punto={pinServicio} sujeto="direccion" nombreProveedor={proveedor.nombre} />
+                )}
               </div>
 
               <div className="space-y-2">

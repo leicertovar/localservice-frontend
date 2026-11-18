@@ -91,6 +91,8 @@ const ProviderPanel = () => {
     foto_perfil: "",
     radio_cobertura_km: null as number | null,
     barrios_cobertura: [] as string[],
+    latitud: null as number | null,
+    longitud: null as number | null,
   });
   const [editProfile, setEditProfile] = useState(profileData);
 
@@ -117,6 +119,8 @@ const ProviderPanel = () => {
       foto_perfil: p.foto_perfil || "",
       radio_cobertura_km: p.radio_cobertura_km ?? null,
       barrios_cobertura: Array.isArray(p.barrios_cobertura) ? p.barrios_cobertura : [],
+      latitud: p.latitud ?? null,
+      longitud: p.longitud ?? null,
     };
     setProfileData(datos);
     setEditProfile(datos);

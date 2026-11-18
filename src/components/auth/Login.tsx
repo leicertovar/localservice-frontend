@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { obtenerUsuarioActual, iniciarSesion } from "@/services/authService";
+import { obtenerUsuarioActual, iniciarSesion, iniciarSesionGoogle, type PerfilUsuario } from "@/services/authService";
+import GoogleBoton from "@/components/auth/GoogleBoton";
+import { mensajeError } from "@/lib/solicitudes";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
@@ -25,6 +27,35 @@ const Login = () => {
   const { toast }      = useToast();
   const navigate       = useNavigate();
   const { setLoggedIn } = useAuth();
+
+  /** Panel según el rol del usuario. */
+  const irAlPanel = (usuario: PerfilUsuario) => {
+    const rolObj    = usuario.rol;
+    const nombreRol = typeof rolObj === "object" && rolObj !== null ? rolObj.nombre : String(rolObj ?? "cliente");
+    navigate(nombreRol.toLowerCase().includes("proveedor") ? "/proveedor"
+           : nombreRol.toLowerCase().includes("admin")     ? "/admin"
+           : "/cliente");
+  };
+
+  const manejarGoogle = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      const respuesta = await iniciarSesionGoogle(idToken);
+      setLoggedIn(true);
+      toast(respuesta.cuenta_nueva
+        ? { title: "¡Bienvenido a LocalService!", description: "Creamos tu cuenta de cliente con Google." }
+        : { title: "¡Bienvenido!", description: "Inicio de sesión con Google completado." });
+      irAlPanel(respuesta.usuario ?? await obtenerUsuarioActual());
+    } catch (err) {
+      toast({
+        title: "No pudimos iniciar sesión con Google",
+        description: mensajeError(err, "Inténtalo de nuevo en unos momentos."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const manejarInicioSesion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +216,17 @@ const Login = () => {
               )}
             </Button>
           </form>
+
+          {/* Google */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-border/60" />
+            <span className="text-xs text-muted-foreground font-medium">o</span>
+            <div className="flex-1 h-px bg-border/60" />
+          </div>
+          <GoogleBoton onCredencial={manejarGoogle} deshabilitado={isLoading} />
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Si es tu primera vez, crearemos tu cuenta de cliente con tu correo de Google.
+          </p>
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">

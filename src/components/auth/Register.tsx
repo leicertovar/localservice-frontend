@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { registrarUsuario, logout } from "@/services/authService";
+import { registrarUsuario, logout, iniciarSesionGoogle } from "@/services/authService";
+import GoogleBoton from "@/components/auth/GoogleBoton";
+import { mensajeError } from "@/lib/solicitudes";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import ZonaTrabajoCampos, { zonaInicial, type ZonaTrabajo } from "@/components/reusable/ZonaTrabajoCampos";
@@ -33,6 +35,7 @@ const Register = () => {
   const [docDiploma, setDocDiploma] = useState<File | null>(null);
   const [zona, setZona] = useState<ZonaTrabajo>(zonaInicial());
   const [errorZona, setErrorZona] = useState<string>();
+  const [errorUbicacion, setErrorUbicacion] = useState<string>();
 
   const manejarRegistro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,13 +48,16 @@ const Register = () => {
       const datos: any = { ...form, rol: role };
       if (role === "proveedor") {
         datos.categoria_servicio = form.categoria_servicio;
-        if (zona.barrios.length === 0) {
-          setErrorZona("Elige al menos un barrio donde atiendes.");
-          toast({ title: "Zona de trabajo", description: "Elige al menos un barrio donde atiendes.", variant: "destructive" });
+        if (!zona.ubicacion || zona.barrios.length === 0) {
+          setErrorUbicacion(zona.ubicacion ? undefined : "Marca en el mapa el punto desde donde sales a trabajar.");
+          setErrorZona(zona.barrios.length ? undefined : "Elige al menos un barrio donde atiendes.");
+          toast({ title: "Zona de trabajo", description: "Marca tu punto base en el mapa y elige al menos un barrio.", variant: "destructive" });
           setIsLoading(false);
           return;
         }
         datos.ciudad = zona.ciudad;
+        datos.latitud = zona.ubicacion.lat;
+        datos.longitud = zona.ubicacion.lng;
         datos.radio_cobertura_km = zona.radio;
         datos.barrios_cobertura = zona.barrios;
         if (!docCedula || !docRut || !docDiploma) {
@@ -79,6 +85,25 @@ const Register = () => {
         ? Object.values(errores).flat().join(" · ")
         : err.response?.data?.mensaje || "Error al procesar el registro.";
       toast({ title: "Error de registro", description: msg, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /** Solo clientes: crea la cuenta (o inicia sesión) con Google. */
+  const registrarConGoogle = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      const respuesta = await iniciarSesionGoogle(idToken);
+      const rol = respuesta.usuario?.rol;
+      const nombreRol = typeof rol === "object" && rol !== null ? rol.nombre : String(rol ?? "cliente");
+      setLoggedIn(true);
+      toast(respuesta.cuenta_nueva
+        ? { title: "¡Bienvenido!", description: "Creamos tu cuenta de cliente con Google." }
+        : { title: "Ya tenías una cuenta", description: "Iniciamos sesión con tu cuenta de Google." });
+      navigate(nombreRol.toLowerCase().includes("proveedor") ? "/proveedor" : nombreRol.toLowerCase().includes("admin") ? "/admin" : "/cliente");
+    } catch (err) {
+      toast({ title: "No pudimos continuar con Google", description: mensajeError(err, "Inténtalo de nuevo."), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -192,6 +217,18 @@ const Register = () => {
               ))}
             </div>
 
+            {/* Clientes: crear la cuenta con Google */}
+            {role === "cliente" && (
+              <div className="space-y-2">
+                <GoogleBoton onCredencial={registrarConGoogle} texto="signup_with" deshabilitado={isLoading} />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border/60" />
+                  <span className="text-xs text-muted-foreground font-medium">o con tu correo</span>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={manejarRegistro} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -268,15 +305,17 @@ const Register = () => {
 
                   <div className="border-t border-primary/15 pt-4 space-y-1">
                     <h3 className="text-sm font-bold text-primary">¿Dónde trabajas?</h3>
-                    <p className="text-[12px] text-muted-foreground">Los clientes verán en tu perfil hasta dónde te desplazas y en qué barrios atiendes.</p>
+                    <p className="text-[12px] text-muted-foreground">Marca tu punto base y tu radio de atención. Los clientes verán en tu perfil si están dentro de tu zona.</p>
                   </div>
                   <ZonaTrabajoCampos
                     valor={zona}
                     onChange={nueva => {
                       setZona(nueva);
                       if (nueva.barrios.length) setErrorZona(undefined);
+                      if (nueva.ubicacion) setErrorUbicacion(undefined);
                     }}
                     error={errorZona}
+                    errorUbicacion={errorUbicacion}
                   />
                 </div>
               )}

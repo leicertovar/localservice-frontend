@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { aceptarSolicitudProveedor, enviarCotizacion, rechazarCotizacion, SolicitudServicioDatos } from "@/services/reservaService";
 import { mensajeError } from "@/lib/solicitudes";
+import ZonaBadge from "@/components/reusable/ZonaBadge";
 
 interface Props {
   solicitudes: SolicitudServicioDatos[];
@@ -108,6 +109,9 @@ const SolicitudesSection = ({ solicitudes, onRefresh, onAbrirChat }: Props) => {
                   <p className="text-sm text-muted-foreground">
                     {req.fecha} · {req.hora} · {req.direccion}
                   </p>
+                  <div className="mt-1.5">
+                    <ZonaBadge zona={req.zona_atencion} />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => req.id && setSolicitudCotizarId(req.id)} className="gap-1">

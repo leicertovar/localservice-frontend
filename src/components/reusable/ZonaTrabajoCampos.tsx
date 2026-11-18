@@ -3,34 +3,46 @@ import { MapPin, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Mapa from "@/components/reusable/Mapa";
+import { aPunto, RADIO_MAX_KM, type Punto } from "@/lib/geo";
 
 export const MUNICIPIOS = ["Buenaventura, Valle del Cauca"];
 export const BARRIOS_SUGERIDOS = ["Centro", "El Cristal", "Pueblo Nuevo", "Bellavista"];
-export const RADIO_MAX_KM = 15;
 
 export interface ZonaTrabajo {
   ciudad: string;
   radio: number;
   barrios: string[];
+  /** Punto base en el mapa: centro del radio de atención. */
+  ubicacion: Punto | null;
 }
 
-export const zonaInicial = (ciudad?: string | null, radio?: number | null, barrios?: string[] | null): ZonaTrabajo => ({
+export const zonaInicial = (
+  ciudad?: string | null,
+  radio?: number | null,
+  barrios?: string[] | null,
+  latitud?: number | string | null,
+  longitud?: number | string | null
+): ZonaTrabajo => ({
   ciudad: ciudad || MUNICIPIOS[0],
-  radio: radio || 8,
+  radio: Math.min(radio || 8, RADIO_MAX_KM),
   barrios: barrios ?? [],
+  ubicacion: aPunto(latitud, longitud),
 });
 
 interface Props {
   valor: ZonaTrabajo;
   onChange: (zona: ZonaTrabajo) => void;
   error?: string;
+  errorUbicacion?: string;
 }
 
 /**
  * Municipio, radio de desplazamiento y barrios donde atiende el proveedor
  * (los mismos campos del registro de la app móvil). Los clientes los ven en su perfil.
  */
-const ZonaTrabajoCampos = ({ valor, onChange, error }: Props) => {
+const ZonaTrabajoCampos = ({ valor, onChange, error, errorUbicacion }: Props) => {
+  const [avisoUbicacion, setAvisoUbicacion] = useState<string>();
   const [opciones, setOpciones] = useState<string[]>(() => Array.from(new Set([...BARRIOS_SUGERIDOS, ...valor.barrios])));
   const [nuevo, setNuevo] = useState("");
   const municipios = MUNICIPIOS.includes(valor.ciudad) ? MUNICIPIOS : [valor.ciudad, ...MUNICIPIOS];
@@ -68,8 +80,33 @@ const ZonaTrabajoCampos = ({ valor, onChange, error }: Props) => {
       </div>
 
       <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">¿Desde dónde sales a trabajar?</Label>
+        <Mapa
+          etiqueta="Mapa de tu zona de atención. Haz clic en el mapa o arrastra el pin para marcar tu punto base."
+          alto={260}
+          pin={valor.ubicacion}
+          onPinChange={ubicacion => {
+            setAvisoUbicacion(undefined);
+            onChange({ ...valor, ubicacion });
+          }}
+          circulo={valor.ubicacion ? { centro: valor.ubicacion, radioKm: valor.radio } : null}
+          botonUbicacion
+          ajustarAlCirculo
+          onErrorUbicacion={setAvisoUbicacion}
+        />
+        <p className="text-xs text-muted-foreground">
+          {valor.ubicacion
+            ? "El círculo muestra hasta dónde atiendes. Puedes mover el pin."
+            : 'Haz clic en el mapa o usa "Mi ubicación" para marcar tu punto base.'}
+        </p>
+        {(errorUbicacion || avisoUbicacion) && (
+          <p className="text-xs font-medium text-destructive">{errorUbicacion ?? avisoUbicacion}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="zona-radio" className="text-sm font-semibold">Hasta dónde te desplazas</Label>
+          <Label htmlFor="zona-radio" className="text-sm font-semibold">Radio de atención (máx. {RADIO_MAX_KM} km)</Label>
           <span className="text-sm font-bold text-primary">{valor.radio} km</span>
         </div>
         <input

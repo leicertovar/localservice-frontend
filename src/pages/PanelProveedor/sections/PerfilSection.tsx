@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import ZonaTrabajoCampos, { zonaInicial, type ZonaTrabajo } from "@/components/reusable/ZonaTrabajoCampos";
 import { actualizarZonaProveedor } from "@/services/proveedorService";
 import { mensajeError } from "@/lib/solicitudes";
+import Mapa from "@/components/reusable/Mapa";
+import { aPunto } from "@/lib/geo";
 import type { UserProfile } from "@/services/authService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,8 @@ interface ProfileData {
   foto_perfil: string;
   radio_cobertura_km: number | null;
   barrios_cobertura: string[];
+  latitud: number | null;
+  longitud: number | null;
 }
 
 interface Props {
@@ -65,25 +69,28 @@ const PerfilSection = ({ profileData, misServicios, onEditarPerfil, onZonaGuarda
   const [editandoZona, setEditandoZona] = useState(false);
   const [zona, setZona] = useState<ZonaTrabajo>(zonaInicial());
   const [errorZona, setErrorZona] = useState<string>();
+  const [errorUbicacion, setErrorUbicacion] = useState<string>();
   const [guardandoZona, setGuardandoZona] = useState(false);
 
   const abrirZona = () => {
-    setZona(zonaInicial(profileData.ciudad, profileData.radio_cobertura_km, profileData.barrios_cobertura));
+    setZona(zonaInicial(profileData.ciudad, profileData.radio_cobertura_km, profileData.barrios_cobertura, profileData.latitud, profileData.longitud));
     setErrorZona(undefined);
+    setErrorUbicacion(undefined);
     setEditandoZona(true);
   };
 
   const guardarZona = async () => {
-    if (zona.barrios.length === 0) {
-      setErrorZona("Elige al menos un barrio donde atiendes.");
-      return;
-    }
+    setErrorUbicacion(zona.ubicacion ? undefined : "Marca en el mapa el punto desde donde sales a trabajar.");
+    setErrorZona(zona.barrios.length ? undefined : "Elige al menos un barrio donde atiendes.");
+    if (!zona.ubicacion || zona.barrios.length === 0) return;
     setGuardandoZona(true);
     try {
       const { usuario } = await actualizarZonaProveedor({
         ciudad: zona.ciudad,
         radio_cobertura_km: zona.radio,
         barrios_cobertura: zona.barrios,
+        latitud: zona.ubicacion.lat,
+        longitud: zona.ubicacion.lng,
       });
       onZonaGuardada(usuario);
       setEditandoZona(false);
@@ -155,10 +162,25 @@ const PerfilSection = ({ profileData, misServicios, onEditarPerfil, onZonaGuarda
             </label>
             <Button variant="ghost" size="sm" className="h-7 text-xs text-primary" onClick={abrirZona}>Editar zona</Button>
           </div>
+          {(() => {
+            const base = aPunto(profileData.latitud, profileData.longitud);
+            return base && profileData.radio_cobertura_km ? (
+              <div className="mt-2">
+                <Mapa
+                  etiqueta={`Tu zona de atención: radio de ${profileData.radio_cobertura_km} km`}
+                  pin={base}
+                  circulo={{ centro: base, radioKm: profileData.radio_cobertura_km }}
+                  alto={200}
+                />
+              </div>
+            ) : (
+              <p className="mt-1 text-xs font-medium text-warning">Marca tu punto base en el mapa (Editar zona) para que los clientes vean tu radio.</p>
+            );
+          })()}
           {profileData.barrios_cobertura.length > 0 ? (
             <>
               <p className="text-sm font-medium text-foreground mt-1">
-                {profileData.radio_cobertura_km ? `Te desplazas hasta ${profileData.radio_cobertura_km} km` : "Radio sin definir"}
+                {profileData.radio_cobertura_km ? `Atiendes hasta ${profileData.radio_cobertura_km} km a la redonda` : "Radio sin definir"}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {profileData.barrios_cobertura.map(b => (
@@ -199,18 +221,20 @@ const PerfilSection = ({ profileData, misServicios, onEditarPerfil, onZonaGuarda
     </div>
 
     <Dialog open={editandoZona} onOpenChange={setEditandoZona}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Mi zona de trabajo</DialogTitle>
-          <DialogDescription>Los clientes verán en tu perfil hasta dónde te desplazas y en qué barrios atiendes.</DialogDescription>
+          <DialogDescription>Los clientes verán tu radio en el mapa y te avisaremos si una solicitud queda fuera de él.</DialogDescription>
         </DialogHeader>
         <ZonaTrabajoCampos
           valor={zona}
           onChange={nueva => {
             setZona(nueva);
             if (nueva.barrios.length) setErrorZona(undefined);
+            if (nueva.ubicacion) setErrorUbicacion(undefined);
           }}
           error={errorZona}
+          errorUbicacion={errorUbicacion}
         />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => setEditandoZona(false)} disabled={guardandoZona}>Cancelar</Button>
