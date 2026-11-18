@@ -9,6 +9,13 @@ export type EstadoSolicitud =
   | 'rechazada' // la rechazó el proveedor
   | 'cancelada'; // la canceló el cliente
 
+/** Dónde queda la solicitud respecto al radio de atención del proveedor. */
+export interface ZonaAtencion {
+  distancia_km: number;
+  dentro: boolean;
+  radio_km: number;
+}
+
 /** Un cambio de estado (línea de tiempo). */
 export interface EventoSolicitud {
   id: number;
@@ -71,6 +78,8 @@ export interface SolicitudServicioDatos {
   resena?: { id: number; calificacion: number } | null;
   /** Historial de estados, del más antiguo al más reciente. */
   eventos?: EventoSolicitud[];
+  /** Solo si el proveedor y la solicitud tienen ubicación en el mapa. */
+  zona_atencion?: ZonaAtencion | null;
 }
 
 /**

@@ -146,6 +146,19 @@ export const iniciarSesion = async (
 export const login = iniciarSesion; // Alias de compatibilidad
 
 /**
+ * Inicio de sesión con Google (botón oficial de Google Identity Services).
+ * El backend valida el idToken; si el correo no tiene cuenta, crea una de cliente.
+ */
+export const iniciarSesionGoogle = async (
+  idToken: string
+): Promise<RespuestaAutenticacion & { cuenta_nueva?: boolean }> => {
+  const { data } = await api.post<RespuestaAutenticacion & { cuenta_nueva?: boolean }>('/auth/google', { id_token: idToken })
+  localStorage.setItem('access_token', data.token_acceso)
+  const usuarioCompleto = await obtenerUsuarioActual()
+  return { ...data, usuario: usuarioCompleto, user: usuarioCompleto }
+}
+
+/**
  * Registra un nuevo usuario en la base de datos de LocalService.
  * Construye de forma automatizada un objeto FormData para soportar la subida del documento.
  */
