@@ -27,6 +27,7 @@ import UsuariosSection from "./sections/UsuariosSection";
 import VerificacionSection from "./sections/VerificacionSection";
 import ResenasSection from "./sections/ResenasSection";
 import ResenasAtipicasSection from "./sections/ResenasAtipicasSection";
+import FotosDenunciadasSection from "./sections/FotosDenunciadasSection";
 import ReportesSection from "./sections/ReportesSection";
 import DisputasSection from "./sections/DisputasSection";
 
@@ -358,6 +359,7 @@ const AdminPanel = () => {
               onActualizar={cargarResenasReportadas}
             />
             <ResenasAtipicasSection />
+            <FotosDenunciadasSection />
           </TabsContent>
 
           <TabsContent value="reportes">

@@ -2,6 +2,7 @@ import { CheckCircle, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { type Resena } from "@/services/resenaService";
+import CarruselFotos from "@/components/reusable/CarruselFotos";
 
 interface Props {
   resenasReportadas: Resena[];
@@ -47,6 +48,12 @@ const ResenasSection = ({ resenasReportadas, onModerar, onEliminar, onActualizar
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">{r.comentario}</p>
+                {(r.imagenes?.length ?? 0) > 0 && (
+                  <div className="max-w-sm">
+                    <p className="mt-2 text-xs font-medium text-foreground">Fotos de la reseña ({r.imagenes!.length}) · revísalas antes de decidir</p>
+                    <CarruselFotos fotos={r.imagenes!} tipo="resena" descripcion="Foto de la reseña reportada" alto={160} />
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(r.created_at).toLocaleDateString('es-CO')}
                 </p>

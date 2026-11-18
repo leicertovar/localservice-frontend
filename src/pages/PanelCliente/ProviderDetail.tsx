@@ -17,6 +17,8 @@ import { obtenerResenas, reportarResena, type Resena } from "@/services/resenaSe
 import { storageUrl } from "@/lib/api";
 import Mapa from "@/components/reusable/Mapa";
 import AvisoZona from "@/components/reusable/AvisoZona";
+import CarruselFotos from "@/components/reusable/CarruselFotos";
+import { formatearMonto } from "@/lib/solicitudes";
 import { aPunto, obtenerUbicacionActual, type Punto } from "@/lib/geo";
 
 // Días de la semana para el horario
@@ -432,8 +434,13 @@ const ProviderDetail = () => {
               <div key={service.id} className="bg-card rounded-xl border p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold text-foreground">{service.nombre}</h3>
-                  <span className="text-lg font-bold text-primary">{service.precio}</span>
+                  <span className="text-lg font-bold text-primary">{formatearMonto(service.precio)}{service.tipo_cobro === "hora" ? "/h" : ""}</span>
                 </div>
+                {service.imagenes_visibles?.length > 0 && (
+                  <div className="mb-3 max-w-md">
+                    <CarruselFotos fotos={service.imagenes_visibles} tipo="servicio" descripcion={`Foto del servicio ${service.nombre}`} alto={200} permitirDenunciar />
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground mb-4">{service.descripcion || "Sin descripción adicional."}</p>
                 <Button size="sm" onClick={() => { setServicioSeleccionadoId(String(service.id)); setShowQuoteForm(true); }}>Solicitar este servicio</Button>
               </div>
@@ -494,6 +501,11 @@ const ProviderDetail = () => {
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">{r.comentario}</p>
+                  {(r.imagenes_visibles?.length ?? 0) > 0 && (
+                    <div className="max-w-sm">
+                      <CarruselFotos fotos={r.imagenes_visibles!} tipo="resena" descripcion={`Foto de la reseña de ${nombreCliente}`} alto={170} permitirDenunciar />
+                    </div>
+                  )}
 
                   {r.respuesta_proveedor && (
                     <div className="mt-3 ml-6 pl-4 border-l-2 border-primary/20 bg-primary/[0.03] rounded-r-lg p-3">

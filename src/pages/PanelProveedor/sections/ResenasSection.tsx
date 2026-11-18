@@ -1,3 +1,4 @@
+import CarruselFotos from "@/components/reusable/CarruselFotos";
 import { useState } from "react";
 import { Star, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,11 @@ const ResenasSection = ({ resenas, onRefresh }: Props) => {
               </div>
             </div>
             <p className="text-sm text-muted-foreground">{r.comentario}</p>
+            {(r.imagenes_visibles?.length ?? 0) > 0 && (
+              <div className="max-w-sm">
+                <CarruselFotos fotos={r.imagenes_visibles!} tipo="resena" descripcion="Foto de la reseña" alto={160} permitirDenunciar />
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               {new Date(r.created_at).toLocaleDateString("es-CO")}
             </p>

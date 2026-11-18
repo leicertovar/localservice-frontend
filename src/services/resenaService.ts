@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import type { Foto } from '@/services/fotosService'
 
 export interface Resena {
   id: number
@@ -13,6 +14,11 @@ export interface Resena {
   esta_ocultada: boolean
   created_at: string
   cliente?: { id: string; nombre: string; apellido?: string }
+  proveedor?: { id: string; nombre: string; apellido?: string }
+  /** Fotos públicas (perfil del proveedor). */
+  imagenes_visibles?: Foto[]
+  /** Todas las fotos, también las ocultadas (admin y autor). */
+  imagenes?: Foto[]
 }
 
 /**
@@ -31,8 +37,16 @@ export const crearResena = async (datos: {
   solicitud_id?: number
   calificacion: number
   comentario: string
+  /** Hasta 3 fotos del trabajo. */
+  fotos?: File[]
 }): Promise<Resena> => {
-  const { data } = await api.post('/resenas', datos)
+  const form = new FormData()
+  form.append('proveedor_id', datos.proveedor_id)
+  if (datos.solicitud_id) form.append('solicitud_id', String(datos.solicitud_id))
+  form.append('calificacion', String(datos.calificacion))
+  form.append('comentario', datos.comentario)
+  datos.fotos?.forEach(f => form.append('imagenes[]', f))
+  const { data } = await api.post('/resenas', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   return data.resena
 }
 

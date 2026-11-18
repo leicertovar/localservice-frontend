@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SolicitudServicioDatos } from "@/services/reservaService";
 import { descargarFacturaPDF } from "@/lib/facturaUtils";
+import { formatearMonto } from "@/lib/solicitudes";
 
 interface Props {
   historial: SolicitudServicioDatos[];
@@ -84,7 +85,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-border/40">
                   <div>
-                    <span className="text-lg font-bold text-foreground">{item.monto_cotizado}</span>
+                    <span className="text-lg font-bold text-foreground">{formatearMonto(item.monto_cotizado)}</span>
                     {item.id && (
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                         <FileText className="w-3 h-3" />
@@ -92,7 +93,12 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    {item.resena ? (
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-foreground" title="Ya calificaste este servicio">
+                        <Star className="w-4 h-4 text-warning fill-warning" />{Number(item.resena.calificacion).toFixed(1)}
+                      </span>
+                    ) : (
                     <Button
                       variant="outline"
                       size="sm"
@@ -107,6 +113,7 @@ const HistorialSection = ({ historial, serviciosCompletadosPendientes, onOpenRev
                       <Star className="w-3 h-3 text-warning" />
                       Reseña
                     </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
