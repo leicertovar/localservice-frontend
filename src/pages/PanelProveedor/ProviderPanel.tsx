@@ -33,6 +33,7 @@ import AgendaSection from "./sections/AgendaSection";
 import MapaSection from "./sections/MapaSection";
 import DisputasSection from "./sections/DisputasSection";
 import PerfilSection from "./sections/PerfilSection";
+import HistorialServicios from "@/components/reusable/HistorialServicios";
 
 const CATEGORIAS_SERVICIO = ["Plomería","Electricidad","Limpieza","Pintura","Jardinería","Tecnología","Barbería","Manicure","Carpintería","Cerrajería","Mudanzas","Cuidado de Mascotas","Otro"];
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -360,6 +361,10 @@ const ProviderPanel = () => {
               serviciosCompletados={serviciosCompletados}
               onAbrirChat={abrirChatConCliente}
             />
+            <div className="mt-8 space-y-3">
+              <h2 className="text-lg font-semibold text-foreground">Historial de servicios</h2>
+              <HistorialServicios rol="proveedor" />
+            </div>
           </TabsContent>
 
           <TabsContent value="servicios">

@@ -226,3 +226,24 @@ export const iniciarServicio = async (id: number): Promise<any> => {
   const { data } = await api.post(`/solicitudes/${id}/iniciar`);
   return data;
 };
+
+/** Página del historial (paginación de Laravel). */
+export interface PaginaHistorial {
+  data: SolicitudServicioDatos[];
+  current_page: number;
+  last_page: number;
+  total: number;
+}
+
+/** Historial de servicios terminados del usuario (cliente o proveedor), paginado y filtrado. */
+export const obtenerHistorial = async (filtros: {
+  estado?: 'todos' | 'completada' | 'cancelada' | 'rechazada';
+  desde?: string;
+  hasta?: string;
+  page?: number;
+  por_pagina?: number;
+}): Promise<PaginaHistorial> => {
+  const params = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== undefined && v !== ''));
+  const { data } = await api.get<PaginaHistorial>('/historial', { params });
+  return data;
+};

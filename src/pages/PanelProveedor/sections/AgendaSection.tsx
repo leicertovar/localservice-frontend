@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Calendar, MessageCircle, CheckCircle2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatearMonto } from "@/lib/solicitudes";
 import { SolicitudServicioDatos } from "@/services/reservaService";
 
 const DIAS_CABECERA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -191,7 +192,7 @@ const AgendaSection = ({ solicitudes, onCompletar, onAbrirChat }: Props) => {
                         </div>
                       )}
                       {sol.monto_cotizado && (
-                        <p className="text-xs font-semibold text-success">{sol.monto_cotizado}</p>
+                        <p className="text-xs font-semibold text-success">{formatearMonto(sol.monto_cotizado)}</p>
                       )}
                     </div>
 

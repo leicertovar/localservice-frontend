@@ -536,7 +536,7 @@ const ProviderDetail = () => {
                 {availability.map(slot => (
                   <div key={slot.day} className="flex items-center justify-between py-2 border-b last:border-0">
                     <span className="font-medium text-foreground text-sm">{slot.day}</span>
-                    <span className="text-sm text-muted-foreground">{slot.hours}</span>
+                    <span className="text-sm text-muted-foreground">{String(slot.hours)}</span>
                   </div>
                 ))}
               </div>
@@ -587,6 +587,7 @@ const ProviderDetail = () => {
         contactName={nombreCompleto}
         contactInitials={iniciales}
         contactRole={p.categoria_servicio || "Proveedor de Servicios"}
+        contactId={id ?? ""}
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
       />

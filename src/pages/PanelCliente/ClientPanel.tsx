@@ -29,6 +29,7 @@ import { crearResena, reportarResena } from "@/services/resenaService";
 import BuscarProveedorSection from "./sections/BuscarProveedorSection";
 import SolicitudesSection from "./sections/SolicitudesSection";
 import SelectorFotos from "@/components/reusable/SelectorFotos";
+import HistorialServicios from "@/components/reusable/HistorialServicios";
 import { mensajeError } from "@/lib/solicitudes";
 import HistorialSection from "./sections/HistorialSection";
 import PerfilSection from "./sections/PerfilSection";
@@ -377,6 +378,10 @@ const ClientPanel = () => {
               onOpenReview={target => { setReviewTarget(target); setReviewDialogOpen(true); }}
               onOpenConfirm={target => { setConfirmTarget(target); setConfirmDialogOpen(true); }}
             />
+            <div className="mt-8 space-y-3">
+              <h2 className="text-lg font-bold text-foreground">Todos mis servicios anteriores</h2>
+              <HistorialServicios rol="cliente" />
+            </div>
           </TabsContent>
 
           <TabsContent value="perfil">
