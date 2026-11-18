@@ -1,4 +1,5 @@
 import api from '@/lib/api'
+import { desconectarTiempoReal } from '@/lib/tiempoReal'
 
 // Perfil de Usuario devuelto por el backend
 export interface PerfilUsuario {
@@ -217,6 +218,7 @@ export const cerrarSesion = async () => {
     // Nos aseguramos de limpiar la sesión local pase lo que pase con la petición
     localStorage.removeItem('access_token')
     limpiarPerfilUsuario()
+    desconectarTiempoReal()
   }
 }
 export const logout = cerrarSesion; // Alias de compatibilidad
