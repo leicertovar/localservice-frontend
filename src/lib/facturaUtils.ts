@@ -1,7 +1,12 @@
 import { SolicitudServicioDatos } from "@/services/reservaService";
+import { formatearMonto } from "@/lib/solicitudes";
 
 import isotipoInvertido from "@/assets/brand/isotipo-invertido.svg";
 import logotipoInvertido from "@/assets/brand/logotipo-invertido.svg";
+
+/** Escapa texto del usuario antes de insertarlo en el HTML de la factura. */
+const esc = (valor: unknown): string =>
+  String(valor ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
 const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
   const provNombre = item.proveedor
@@ -16,7 +21,8 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
   } else {
     try {
       const perfil = JSON.parse(localStorage.getItem("user_profile") || "{}");
-      if (perfil.name) clienteNombre = perfil.name;
+      const nombrePerfil = `${perfil.nombre ?? ""} ${perfil.apellido ?? ""}`.trim();
+      if (nombrePerfil) clienteNombre = nombrePerfil;
       if (perfil.email) clienteEmail = perfil.email;
       if (perfil.telefono) clienteTelefono = perfil.telefono;
     } catch {}
@@ -103,15 +109,15 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
   <div class="header">
     <div>
       <div class="brand-logo">
-        <img src="${isotipoInvertido}" alt="" style="height:36px"/>
-        <img src="${logotipoInvertido}" alt="LocalService" style="height:16px"/>
+        <img src="${esc(isotipoInvertido)}" alt="" style="height:36px"/>
+        <img src="${esc(logotipoInvertido)}" alt="LocalService" style="height:16px"/>
       </div>
       <div class="brand-sub">Plataforma de servicios locales</div>
     </div>
     <div class="invoice-meta">
       <div class="invoice-title">FACTURA</div>
-      <div class="invoice-num">${numeroFactura}</div>
-      <div class="invoice-date">Emitida el ${fecha}</div>
+      <div class="invoice-num">${esc(numeroFactura)}</div>
+      <div class="invoice-date">Emitida el ${esc(fecha)}</div>
       <span class="status-badge">✓ Servicio Completado</span>
     </div>
   </div>
@@ -120,15 +126,15 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
     <div class="parties">
       <div class="party">
         <div class="party-label">Cliente</div>
-        <div class="party-name">${clienteNombre}</div>
-        ${clienteEmail ? `<div class="party-detail">${clienteEmail}</div>` : ""}
-        ${clienteTelefono ? `<div class="party-detail">${clienteTelefono}</div>` : ""}
+        <div class="party-name">${esc(clienteNombre)}</div>
+        ${clienteEmail ? `<div class="party-detail">${esc(clienteEmail)}</div>` : ""}
+        ${clienteTelefono ? `<div class="party-detail">${esc(clienteTelefono)}</div>` : ""}
       </div>
       <div class="party">
         <div class="party-label">Proveedor</div>
-        <div class="party-name">${provNombre}</div>
-        ${item.proveedor?.email ? `<div class="party-detail">${item.proveedor.email}</div>` : ""}
-        ${item.proveedor?.telefono ? `<div class="party-detail">${item.proveedor.telefono}</div>` : ""}
+        <div class="party-name">${esc(provNombre)}</div>
+        ${item.proveedor?.email ? `<div class="party-detail">${esc(item.proveedor.email)}</div>` : ""}
+        ${item.proveedor?.telefono ? `<div class="party-detail">${esc(item.proveedor.telefono)}</div>` : ""}
       </div>
     </div>
 
@@ -147,37 +153,37 @@ const crearHtmlFactura = (item: SolicitudServicioDatos): string => {
       <tbody>
         <tr>
           <td>
-            <strong>${item.servicio?.nombre || "Servicio Personalizado"}</strong>
-            ${item.servicio?.categoria ? `<br/><span style="color:#64748b;font-size:11px">${item.servicio.categoria}</span>` : ""}
+            <strong>${esc(item.servicio?.nombre || "Servicio Personalizado")}</strong>
+            ${item.servicio?.categoria ? `<br/><span style="color:#64748b;font-size:11px">${esc(item.servicio.categoria)}</span>` : ""}
           </td>
-          <td>${fechaServicio}</td>
-          <td>${item.direccion || "—"}</td>
-          <td>${item.monto_cotizado || "—"}</td>
+          <td>${esc(fechaServicio)}</td>
+          <td>${esc(item.direccion || "—")}</td>
+          <td>${esc(formatearMonto(item.monto_cotizado) || "—")}</td>
         </tr>
       </tbody>
     </table>
 
     ${item.descripcion ? `
     <div class="section-title">Descripción acordada</div>
-    <div class="details-box">${item.descripcion}</div>
+    <div class="details-box">${esc(item.descripcion)}</div>
     ` : ""}
 
     ${item.detalles_cotizacion ? `
     <div class="section-title">Detalles de la cotización</div>
-    <div class="details-box">${item.detalles_cotizacion}</div>
+    <div class="details-box">${esc(item.detalles_cotizacion)}</div>
     ` : ""}
 
     <div class="section-title">Información adicional</div>
     <div class="details-box">
-      ${item.tiempo_estimado ? `<div class="detail-row"><span class="detail-label">Tiempo estimado</span><span class="detail-value">${item.tiempo_estimado}</span></div>` : ""}
-      ${item.garantia ? `<div class="detail-row"><span class="detail-label">Garantía</span><span class="detail-value">${item.garantia}</span></div>` : ""}
-      ${item.hora ? `<div class="detail-row"><span class="detail-label">Hora del servicio</span><span class="detail-value">${item.hora}</span></div>` : ""}
-      <div class="detail-row"><span class="detail-label">Referencia</span><span class="detail-value">${numeroFactura}</span></div>
+      ${item.tiempo_estimado ? `<div class="detail-row"><span class="detail-label">Tiempo estimado</span><span class="detail-value">${esc(item.tiempo_estimado)}</span></div>` : ""}
+      ${item.garantia ? `<div class="detail-row"><span class="detail-label">Garantía</span><span class="detail-value">${esc(item.garantia)}</span></div>` : ""}
+      ${item.hora ? `<div class="detail-row"><span class="detail-label">Hora del servicio</span><span class="detail-value">${esc(item.hora)}</span></div>` : ""}
+      <div class="detail-row"><span class="detail-label">Referencia</span><span class="detail-value">${esc(numeroFactura)}</span></div>
     </div>
 
     <div class="total-box">
       <span class="total-label">Total Pagado</span>
-      <span class="total-amount">${item.monto_cotizado || "—"}</span>
+      <span class="total-amount">${esc(formatearMonto(item.monto_cotizado) || "—")}</span>
     </div>
   </div>
 
@@ -216,7 +222,7 @@ export const descargarFacturaPDF = async (item: SolicitudServicioDatos): Promise
       backgroundColor: "#ffffff",
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/jpeg", 0.9);
     const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
 
     const pdfW = pdf.internal.pageSize.getWidth();
@@ -227,7 +233,7 @@ export const descargarFacturaPDF = async (item: SolicitudServicioDatos): Promise
     const offsetX = (pdfW - imgW) / 2;
     const offsetY = (pdfH - imgH) / 2;
 
-    pdf.addImage(imgData, "PNG", offsetX, offsetY, imgW, imgH);
+    pdf.addImage(imgData, "JPEG", offsetX, offsetY, imgW, imgH);
     pdf.save(`Factura-${String(item.id).padStart(6, "0")}.pdf`);
   } finally {
     document.body.removeChild(contenedor);

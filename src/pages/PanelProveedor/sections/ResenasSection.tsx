@@ -1,3 +1,5 @@
+import CarruselFotos from "@/components/reusable/CarruselFotos";
+import { mensajeError } from "@/lib/solicitudes";
 import { useState } from "react";
 import { Star, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,21 +19,36 @@ const ResenasSection = ({ resenas, onRefresh }: Props) => {
   const { toast } = useToast();
 
   const enviarRespuesta = async (id: number) => {
-    if (!replyText.trim()) return;
+    if (replyText.trim().length < 2) return;
     try {
-      await apiResponderResena(id, replyText);
-      toast({ title: "Respuesta publicada" });
+      await apiResponderResena(id, replyText.trim());
+      toast({ title: "Respuesta publicada", description: "El cliente la verá debajo de su reseña." });
       setReplyingTo(null);
       setReplyText("");
       onRefresh();
-    } catch {
-      toast({ title: "Error", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "No se pudo publicar la respuesta", description: mensajeError(err, "Inténtalo de nuevo."), variant: "destructive" });
     }
   };
+
+  const promedio = resenas.length ? resenas.reduce((a, r) => a + Number(r.calificacion), 0) / resenas.length : 0;
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-foreground">Mis Reseñas ({resenas.length})</h2>
+      {resenas.length > 0 && (
+        <div className="flex items-center gap-4 rounded-xl border bg-card p-5" aria-label={`Promedio ${promedio.toFixed(1)} de 5`}>
+          <span className="text-4xl font-bold text-foreground">{promedio.toFixed(1)}</span>
+          <div>
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map(n => (
+                <Star key={n} className={`w-5 h-5 ${n <= Math.round(promedio) ? "text-warning fill-warning" : "text-muted"}`} />
+              ))}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Promedio de {resenas.length} {resenas.length === 1 ? "reseña" : "reseñas"} · más recientes primero</p>
+          </div>
+        </div>
+      )}
       {resenas.length === 0 ? (
         <div className="bg-card border rounded-xl p-8 text-center text-muted-foreground text-sm">
           Aún no tienes reseñas de clientes.
@@ -60,6 +77,11 @@ const ResenasSection = ({ resenas, onRefresh }: Props) => {
               </div>
             </div>
             <p className="text-sm text-muted-foreground">{r.comentario}</p>
+            {(r.imagenes_visibles?.length ?? 0) > 0 && (
+              <div className="max-w-sm">
+                <CarruselFotos fotos={r.imagenes_visibles!} tipo="resena" descripcion="Foto de la reseña" alto={160} permitirDenunciar />
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               {new Date(r.created_at).toLocaleDateString("es-CO")}
             </p>
@@ -69,14 +91,14 @@ const ResenasSection = ({ resenas, onRefresh }: Props) => {
                 <p className="text-sm text-muted-foreground">{r.respuesta_proveedor}</p>
               </div>
             )}
-            {!r.respuesta_proveedor && replyingTo !== r.id && (
+            {replyingTo !== r.id && (
               <Button
                 size="sm"
                 variant="ghost"
                 className="mt-2 text-xs text-primary"
-                onClick={() => setReplyingTo(r.id)}
+                onClick={() => { setReplyingTo(r.id); setReplyText(r.respuesta_proveedor ?? ""); }}
               >
-                Responder reseña
+                {r.respuesta_proveedor ? "Editar respuesta" : "Responder reseña"}
               </Button>
             )}
             {replyingTo === r.id && (

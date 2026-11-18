@@ -28,6 +28,8 @@ import {
 import { crearResena, reportarResena } from "@/services/resenaService";
 import BuscarProveedorSection from "./sections/BuscarProveedorSection";
 import SolicitudesSection from "./sections/SolicitudesSection";
+import SelectorFotos from "@/components/reusable/SelectorFotos";
+import HistorialServicios from "@/components/reusable/HistorialServicios";
 import { mensajeError } from "@/lib/solicitudes";
 import HistorialSection from "./sections/HistorialSection";
 import PerfilSection from "./sections/PerfilSection";
@@ -52,6 +54,8 @@ const ClientPanel = () => {
   const [reviewTarget, setReviewTarget] = useState<{ service: string; provider: string; proveedorId: string; solicitudId?: number }>({ service: "", provider: "", proveedorId: "" });
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewFotos, setReviewFotos] = useState<File[]>([]);
+  const [publicandoResena, setPublicandoResena] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ resenaId: number; providerName: string } | null>(null);
   const [reportMotivo, setReportMotivo] = useState("");
@@ -168,15 +172,20 @@ const ClientPanel = () => {
   };
 
   const publicarResenaCliente = async () => {
-    if (!reviewComment.trim()) return;
+    if (!reviewComment.trim() || publicandoResena) return;
+    setPublicandoResena(true);
     try {
-      await crearResena({ proveedor_id: reviewTarget.proveedorId, solicitud_id: reviewTarget.solicitudId, calificacion: reviewRating, comentario: reviewComment });
+      await crearResena({ proveedor_id: reviewTarget.proveedorId, solicitud_id: reviewTarget.solicitudId, calificacion: reviewRating, comentario: reviewComment, fotos: reviewFotos });
       setReviewDialogOpen(false);
       setReviewComment("");
+      setReviewFotos([]);
       setReviewRating(5);
+      cargarSolicitudesCliente();
       toast({ title: "Reseña publicada", description: `Tu calificación de ${reviewRating} estrellas ha sido publicada.` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.response?.data?.mensaje || "No se pudo publicar la reseña.", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "No se pudo publicar la reseña", description: mensajeError(error, "Inténtalo de nuevo."), variant: "destructive" });
+    } finally {
+      setPublicandoResena(false);
     }
   };
 
@@ -369,6 +378,10 @@ const ClientPanel = () => {
               onOpenReview={target => { setReviewTarget(target); setReviewDialogOpen(true); }}
               onOpenConfirm={target => { setConfirmTarget(target); setConfirmDialogOpen(true); }}
             />
+            <div className="mt-8 space-y-3">
+              <h2 className="text-lg font-bold text-foreground">Todos mis servicios anteriores</h2>
+              <HistorialServicios rol="cliente" />
+            </div>
           </TabsContent>
 
           <TabsContent value="perfil">
@@ -465,9 +478,16 @@ const ClientPanel = () => {
                 className="rounded-xl border-border/70 resize-none"
               />
             </div>
+            <SelectorFotos
+              label="Fotos del trabajo (opcional)"
+              nuevas={reviewFotos}
+              onNuevasChange={setReviewFotos}
+              disabled={publicandoResena}
+              ayuda="Hasta 3 fotos. Ayudan a otros clientes a conocer el trabajo del proveedor."
+            />
             <div className="flex gap-2 pt-1">
-              <Button onClick={publicarResenaCliente} className="flex-1 h-10 rounded-xl font-semibold" disabled={!reviewComment.trim()}>
-                Publicar reseña
+              <Button onClick={publicarResenaCliente} className="flex-1 h-10 rounded-xl font-semibold" disabled={!reviewComment.trim() || publicandoResena}>
+                {publicandoResena ? "Publicando…" : "Publicar reseña"}
               </Button>
               <Button variant="outline" className="h-10 rounded-xl border-border/60" onClick={() => setReviewDialogOpen(false)}>
                 Cancelar

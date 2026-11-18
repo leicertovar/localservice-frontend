@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import FotosServicio from "./FotosServicio";
 import {
   crearServicio,
   actualizarServicio,
@@ -155,7 +156,7 @@ const ServiciosSection = ({ misServicios, onRefresh }: Props) => {
         </div>
       ) : (
         misServicios.map(service => (
-          <div key={service.id} className="bg-card rounded-xl border p-5 flex items-center justify-between">
+          <div key={service.id} className="bg-card rounded-xl border p-5 flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">{service.nombre}</h3>
@@ -167,6 +168,7 @@ const ServiciosSection = ({ misServicios, onRefresh }: Props) => {
               {service.descripcion && (
                 <p className="text-xs text-muted-foreground mt-1 max-w-lg">{service.descripcion}</p>
               )}
+              {service.id && <FotosServicio servicioId={service.id} fotos={service.imagenes ?? []} onCambio={onRefresh} />}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => service.id && cambiarEstadoServicio(service.id)}>

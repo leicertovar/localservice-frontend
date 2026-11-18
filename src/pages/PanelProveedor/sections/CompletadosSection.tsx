@@ -1,6 +1,7 @@
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatearMonto } from "@/lib/solicitudes";
 import { SolicitudServicioDatos } from "@/services/reservaService";
 
 interface Props {
@@ -39,7 +40,7 @@ const CompletadosSection = ({ serviciosCompletados, onAbrirChat }: Props) => (
                   <Badge className={`text-xs ${badgeColor}`}>{estadoConf}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">Cliente: {clienteNombre} · Fecha: {s.fecha}</p>
-                <p className="text-sm font-semibold text-foreground">{s.monto_cotizado}</p>
+                <p className="text-sm font-semibold text-foreground">{formatearMonto(s.monto_cotizado)}</p>
                 {s.queja_cliente && (
                   <div className="mt-2 p-2 bg-destructive/5 border border-destructive/20 rounded text-xs text-destructive">
                     <strong>Queja:</strong> {s.queja_cliente}

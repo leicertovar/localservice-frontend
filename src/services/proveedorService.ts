@@ -22,6 +22,9 @@ export interface PerfilProveedorDatos {
  * Interfaz para el modelo de Servicio.
  */
 export interface ServicioDatos {
+  /** Fotos (máximo 3): el proveedor recibe todas; el perfil público solo las visibles. */
+  imagenes?: import('@/services/fotosService').Foto[];
+  imagenes_visibles?: import('@/services/fotosService').Foto[];
   id?: number;
   usuario_id?: string;
   nombre: string;
