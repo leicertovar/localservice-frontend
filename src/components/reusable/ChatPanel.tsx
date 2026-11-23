@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { obtenerConversacion, enviarMensaje, type Mensaje } from "@/services/mensajeService";
 import { storageUrl } from "@/lib/api";
+import { useMensajesEnVivo, useTiempoRealConectado } from "@/lib/tiempoReal";
 
 interface ChatPanelProps {
   contactName: string;
@@ -34,13 +35,20 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
     }
   };
 
+  // Tiempo real (Reverb): un mensaje de esta conversación recarga al instante
+  const enVivo = useTiempoRealConectado();
+  useMensajesEnVivo(miId ?? undefined, m => {
+    if (isOpen && (m.emisor_id === contactId || m.receptor_id === contactId)) cargarMensajes();
+  });
+
   useEffect(() => {
     if (isOpen && contactId) {
       cargarMensajes();
-      const intervalo = setInterval(cargarMensajes, 5000); // Polling cada 5s
+      // Respaldo: cada 5 s sin tiempo real, cada 30 s con él
+      const intervalo = setInterval(cargarMensajes, enVivo ? 30000 : 5000);
       return () => clearInterval(intervalo);
     }
-  }, [isOpen, contactId]);
+  }, [isOpen, contactId, enVivo]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,7 +95,9 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
         <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
           esMio ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"
         }`}>
-          {msg.tipo === 'texto' && (
+          {msg.eliminado ? (
+            <p className="text-sm italic opacity-80">{esMio ? "Eliminaste este mensaje" : "Se eliminó este mensaje"}</p>
+          ) : msg.tipo === 'texto' && (
             <p className="text-sm leading-relaxed">{msg.contenido}</p>
           )}
           {msg.tipo === 'imagen' && msg.url_archivo && (
@@ -106,6 +116,7 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
             </a>
           )}
           <p className={`text-[10px] mt-1 ${esMio ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+            {msg.editado_en && !msg.eliminado && <span className="italic">Editado · </span>}
             {formatearHora(msg.created_at)} {esMio && (msg.leido ? "✓✓" : "✓")}
           </p>
         </div>
