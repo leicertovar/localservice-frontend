@@ -10,6 +10,10 @@ export interface Mensaje {
   nombre_archivo?: string
   leido: boolean
   created_at: string
+  /** Editado desde la app (hasta 5 min después de enviarlo). */
+  editado_en?: string | null
+  /** Eliminado para todos desde la app: ya no trae texto ni archivo. */
+  eliminado?: boolean
   emisor?: { id: string; nombre: string; apellido?: string }
 }
 

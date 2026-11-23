@@ -57,9 +57,9 @@ export const conectarTiempoReal = (usuarioId: string): boolean => {
   const pusher = (echo.connector as unknown as { pusher: Pusher }).pusher;
   pusher.connection.bind('state_change', ({ current }: { current: string }) => avisarEstado(current === 'connected'));
 
-  echo.private(`usuarios.${usuarioId}`).listen('.mensaje.nuevo', ({ mensaje }: { mensaje: Mensaje }) => {
-    oyentesMensaje.forEach((o) => o(mensaje));
-  });
+  const avisarMensaje = ({ mensaje }: { mensaje: Mensaje }) => oyentesMensaje.forEach((o) => o(mensaje));
+  // Mensajes nuevos, editados o eliminados (desde la app): el chat se vuelve a cargar
+  echo.private(`usuarios.${usuarioId}`).listen('.mensaje.nuevo', avisarMensaje).listen('.mensaje.actualizado', avisarMensaje);
   return true;
 };
 

@@ -95,7 +95,9 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
         <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
           esMio ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"
         }`}>
-          {msg.tipo === 'texto' && (
+          {msg.eliminado ? (
+            <p className="text-sm italic opacity-80">{esMio ? "Eliminaste este mensaje" : "Se eliminó este mensaje"}</p>
+          ) : msg.tipo === 'texto' && (
             <p className="text-sm leading-relaxed">{msg.contenido}</p>
           )}
           {msg.tipo === 'imagen' && msg.url_archivo && (
@@ -114,6 +116,7 @@ const ChatPanel = ({ contactName, contactInitials, contactRole, contactId, isOpe
             </a>
           )}
           <p className={`text-[10px] mt-1 ${esMio ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+            {msg.editado_en && !msg.eliminado && <span className="italic">Editado · </span>}
             {formatearHora(msg.created_at)} {esMio && (msg.leido ? "✓✓" : "✓")}
           </p>
         </div>
