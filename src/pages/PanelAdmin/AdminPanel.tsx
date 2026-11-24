@@ -45,10 +45,17 @@ interface UserData {
   rating?: number;
   servicesRequested?: number;
   doc_cedula?: string | null;
+  doc_cedula_reverso?: string | null;
   doc_rut?: string | null;
   doc_diploma?: string | null;
   categoria_servicio?: string | null;
+  /** Coincidencia entre la cédula leída en la app y el registro (null: sin lectura automática). */
+  coincidencia?: number | null;
+  metodo_lectura?: string | null;
 }
+
+/** Los documentos llegan como enlaces firmados ("…?formato=png&…") o rutas antiguas ("….png"). */
+const esImagen = (url: string) => /\.(jpg|jpeg|png|webp)$/i.test(url.split('?')[0]) || /[?&]formato=(jpg|png)(&|$)/.test(url);
 
 const AdminPanel = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -94,6 +101,9 @@ const AdminPanel = () => {
       rating: esProveedor ? parseFloat(u.perfil_proveedor?.calificacion || 0) : 0,
       servicesRequested: !esProveedor ? 0 : 0,
       doc_cedula:  esProveedor ? u.perfil_proveedor?.doc_cedula  : null,
+      doc_cedula_reverso: esProveedor ? u.perfil_proveedor?.doc_cedula_reverso : null,
+      coincidencia: esProveedor ? u.verificacion_proveedor?.porcentaje_coincidencia ?? null : null,
+      metodo_lectura: esProveedor ? u.verificacion_proveedor?.metodo_extraccion ?? null : null,
       doc_rut:     esProveedor ? u.perfil_proveedor?.doc_rut     : null,
       doc_diploma: esProveedor ? u.perfil_proveedor?.doc_diploma : null,
       categoria_servicio: esProveedor ? u.perfil_proveedor?.categoria_servicio : null
@@ -452,16 +462,23 @@ const AdminPanel = () => {
               <p><strong>Proveedor:</strong> {docsDialogUser?.name}</p>
               <p><strong>Email:</strong> {docsDialogUser?.email}</p>
               <p><strong>Categoría:</strong> {docsDialogUser?.categoria_servicio || "No especificada"}</p>
+              <p>
+                <strong>Coincidencia con la cédula:</strong>{' '}
+                {docsDialogUser?.coincidencia != null
+                  ? `${docsDialogUser.coincidencia}% (${docsDialogUser.metodo_lectura === 'mrz' ? 'cédula digital, MRZ' : 'cédula amarilla, código PDF417'})`
+                  : 'Sin lectura automática'}
+              </p>
             </div>
             {[
-              { label: 'Cédula de Ciudadanía', url: docsDialogUser?.doc_cedula },
+              { label: docsDialogUser?.doc_cedula_reverso ? 'Cédula · frente' : 'Cédula de Ciudadanía', url: docsDialogUser?.doc_cedula },
+              ...(docsDialogUser?.doc_cedula_reverso ? [{ label: 'Cédula · reverso', url: docsDialogUser.doc_cedula_reverso }] : []),
               { label: 'RUT', url: docsDialogUser?.doc_rut },
               { label: 'Diploma / Certificado', url: docsDialogUser?.doc_diploma },
             ].map(({ label, url }) => (
               <div key={label} className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
                 {url ? (
-                  /\.(jpg|jpeg|png|webp)$/i.test(url) ? (
+                  esImagen(url) ? (
                     <img
                       src={storageUrl(url)}
                       alt={label}
